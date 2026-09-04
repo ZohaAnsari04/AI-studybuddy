@@ -125,6 +125,12 @@ export const DEMO_DOCUMENTS: StudyDocument[] = [
     unitsDetected: 3,
     topicsIdentified: 3,
     conceptsExtracted: 18,
+    materialType: 'lecture_notes',
+    subject: 'Neuropathology',
+    academicConfidence: 0.98,
+    academicReason: 'Verified lecture notes containing educational principles in Neuropathology.',
+    verificationStatus: 'approved',
+    contentHash: 'demo-hash-neuropath-12345',
     chunks: [
       {
         id: 'chunk-np-1',
@@ -290,6 +296,17 @@ export class StorageService {
     const userId = this.getActiveUserId();
     const data = localStorage.getItem(`${STORAGE_KEYS.DOCUMENTS_PREFIX}${userId}`);
     return data ? JSON.parse(data) : [];
+  }
+
+  static getApprovedDocuments(): StudyDocument[] {
+    return this.getDocuments().filter(
+      (d) => d.verificationStatus === 'approved' || (!d.verificationStatus && d.status === 'ready')
+    );
+  }
+
+  static hasDocumentHash(hash: string): boolean {
+    if (!hash) return false;
+    return this.getDocuments().some((d) => d.contentHash === hash);
   }
 
   static saveDocuments(docs: StudyDocument[]) {

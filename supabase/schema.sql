@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 -- 2. DOCUMENTS TABLE
+-- STRICT ACADEMIC VALIDATION ENFORCEMENT:
+-- Stores only validated academic materials. Unapproved or rejected files are not persisted.
 CREATE TABLE IF NOT EXISTS public.documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -19,12 +21,27 @@ CREATE TABLE IF NOT EXISTS public.documents (
   size_bytes BIGINT NOT NULL,
   mime_type TEXT NOT NULL,
   storage_path TEXT,
-  status TEXT DEFAULT 'ready' CHECK (status IN ('uploading', 'reading', 'understanding', 'organizing', 'ready', 'failed')),
+  status TEXT DEFAULT 'ready' CHECK (status IN ('uploading', 'reading', 'understanding', 'organizing', 'ready', 'failed', 'rejected')),
   units_detected INT DEFAULT 0,
   topics_identified INT DEFAULT 0,
   concepts_extracted INT DEFAULT 0,
+  content_hash TEXT,
+  material_type TEXT DEFAULT 'lecture_notes',
+  subject TEXT,
+  academic_confidence NUMERIC DEFAULT 1.0,
+  verification_status TEXT DEFAULT 'approved' CHECK (verification_status IN ('approved', 'rejected', 'pending', 'uncertain')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Safe migrations for existing databases
+ALTER TABLE public.documents ADD COLUMN IF NOT EXISTS content_hash TEXT;
+ALTER TABLE public.documents ADD COLUMN IF NOT EXISTS material_type TEXT DEFAULT 'lecture_notes';
+ALTER TABLE public.documents ADD COLUMN IF NOT EXISTS subject TEXT;
+ALTER TABLE public.documents ADD COLUMN IF NOT EXISTS academic_confidence NUMERIC DEFAULT 1.0;
+ALTER TABLE public.documents ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'approved';
+
+CREATE INDEX IF NOT EXISTS idx_documents_user_hash ON public.documents(user_id, content_hash);
+CREATE INDEX IF NOT EXISTS idx_documents_verification ON public.documents(user_id, verification_status);
 
 -- 3. DOCUMENT CHUNKS TABLE (with pgvector embedding)
 CREATE TABLE IF NOT EXISTS public.document_chunks (
@@ -173,6 +190,7 @@ CREATE POLICY "Users can delete own revision tasks" ON public.revision_tasks FOR
 
 -- ===================================================================
 -- VECTOR SIMILARITY SEARCH FUNCTION FOR GROUNDED RAG CHAT
+-- ONLY RETRIEVES APPROVED ACADEMIC MATERIALS
 -- ===================================================================
 
 CREATE OR REPLACE FUNCTION match_document_chunks(
@@ -199,7 +217,9 @@ BEGIN
     dc.text_content,
     1 - (dc.embedding <=> query_embedding) AS similarity
   FROM public.document_chunks dc
+  INNER JOIN public.documents d ON d.id = dc.document_id
   WHERE dc.user_id = filter_user_id
+    AND d.verification_status = 'approved'
   ORDER BY dc.embedding <=> query_embedding
   LIMIT match_count;
 END;

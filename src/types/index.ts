@@ -59,17 +59,55 @@ export interface DocumentChunk {
   text: string;
 }
 
+export type MaterialClassification = 'academic' | 'non_academic' | 'uncertain';
+
+export type MaterialType =
+  | 'syllabus'
+  | 'lecture_notes'
+  | 'textbook'
+  | 'assignment'
+  | 'question_paper'
+  | 'lab_manual'
+  | 'revision_material'
+  | 'academic_paper'
+  | 'academic_presentation'
+  | 'other_academic'
+  | 'resume'
+  | 'invoice'
+  | 'financial_doc'
+  | 'personal_doc'
+  | 'entertainment'
+  | 'unrelated';
+
+export interface AcademicValidationResult {
+  isAcademic: boolean;
+  classification: MaterialClassification;
+  confidence: number; // 0.0 -> 1.0
+  materialType: MaterialType | string;
+  subject?: string;
+  topic?: string;
+  reason: string;
+  extractedSnippet?: string;
+}
+
 export interface StudyDocument {
   id: string;
   name: string;
   sizeFormatted: string;
   uploadedAt: string;
-  status: 'uploading' | 'reading' | 'understanding' | 'organizing' | 'ready';
+  status: 'uploading' | 'reading' | 'understanding' | 'organizing' | 'ready' | 'rejected';
   progressPercent: number;
   unitsDetected: number;
   topicsIdentified: number;
   conceptsExtracted: number;
   chunks: DocumentChunk[];
+  // Academic validation metadata
+  materialType?: string;
+  subject?: string;
+  academicConfidence?: number;
+  academicReason?: string;
+  contentHash?: string;
+  verificationStatus?: 'approved' | 'rejected' | 'pending';
 }
 
 export interface ChatCitation {

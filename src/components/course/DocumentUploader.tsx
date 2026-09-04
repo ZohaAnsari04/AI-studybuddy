@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   UploadCloud,
   FileText,
@@ -10,10 +10,19 @@ import {
   X,
   RefreshCw,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  ShieldCheck,
+  ShieldAlert,
+  MessageSquare,
+  HelpCircle,
+  FileQuestion,
+  Calendar,
+  Layers,
+  GraduationCap
 } from 'lucide-react';
-import { StudyDocument, Course } from '../../types';
-import { DocumentService } from '../../lib/services/documentService';
+import { StudyDocument, Course, AcademicValidationResult } from '../../types';
+import { DocumentService, AcademicRejectionError } from '../../lib/services/documentService';
+import { validateFileFormat, getMaxUploadSizeMB } from '../../lib/ai/academicClassifier';
 import { GlassCard } from '../common/GlassCard';
 import { Button } from '../common/Button';
 
@@ -24,8 +33,6 @@ interface DocumentUploaderProps {
   onNavigate: (tab: string) => void;
 }
 
-const MAX_FILE_SIZE_MB = 20;
-
 export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   documents,
   onCourseCreated,
@@ -34,12 +41,13 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Synced local documents list state for instant UI re-rendering
-  const [docsList, setDocsList] = useState<StudyDocument[]>(documents);
+  // Deleted IDs for instant optimistic UI deletion
+  const [deletedDocIds, setDeletedDocIds] = useState<string[]>([]);
 
-  useEffect(() => {
-    setDocsList(documents);
-  }, [documents]);
+  // Filter approved documents only
+  const docsList = documents
+    .filter((d) => d.verificationStatus !== 'rejected')
+    .filter((d) => !deletedDocIds.includes(d.id));
 
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -49,11 +57,13 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStage, setCurrentStage] = useState<StudyDocument['status']>('ready');
   const [progress, setProgress] = useState(0);
-  const [latestResult, setLatestResult] = useState<{ course: Course; document: StudyDocument } | null>(null);
+  const [latestResult, setLatestResult] = useState<{ course: Course; document: StudyDocument; validation: AcademicValidationResult } | null>(null);
 
   // Modal Delete State
   const [docToDelete, setDocToDelete] = useState<StudyDocument | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const maxFileSizeMB = getMaxUploadSizeMB();
 
   // Helper format file size
   const formatBytes = (bytes: number) => {
@@ -64,29 +74,18 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Validate File
+  // Validate File (Level 1 fast check)
   const validateAndSetFile = (file: File) => {
     setErrorMsg(null);
+    setLatestResult(null);
 
-    // Check size limit
-    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      setErrorMsg(`This file is too large. Please upload a file smaller than ${MAX_FILE_SIZE_MB} MB.`);
-      return;
-    }
-
-    // Check type/extension
-    const nameLower = file.name.toLowerCase();
-    const isPdf = file.type === 'application/pdf' || nameLower.endsWith('.pdf');
-    const isDocx = file.type.includes('word') || nameLower.endsWith('.docx') || nameLower.endsWith('.doc');
-    const isTxt = file.type.includes('text') || nameLower.endsWith('.txt');
-
-    if (!isPdf && !isDocx && !isTxt) {
-      setErrorMsg("This file type isn't supported. Please upload a PDF, DOCX, or TXT document.");
+    const check = validateFileFormat(file);
+    if (!check.isValid) {
+      setErrorMsg(check.error || 'Invalid file');
       return;
     }
 
     setSelectedFile(file);
-    setLatestResult(null);
   };
 
   // Native file input change handler
@@ -122,7 +121,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     }
   };
 
-  // Analyze Material Action via DocumentService
+  // Analyze & Validate Material Action via DocumentService
   const handleStartAnalysis = async () => {
     if (!selectedFile) return;
 
@@ -131,20 +130,30 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     setErrorMsg(null);
 
     try {
-      const { course, document } = await DocumentService.uploadAndProcessDocument(selectedFile, (stage, percent) => {
+      const { course, document, validation } = await DocumentService.uploadAndProcessDocument(selectedFile, (stage, percent) => {
         setCurrentStage(stage);
         setProgress(percent);
       });
 
-      setLatestResult({ course, document });
+      setLatestResult({ course, document, validation });
       setSelectedFile(null);
-
-      // Instantly update local list state
-      setDocsList((prev) => [document, ...prev.filter((d) => d.id !== document.id)]);
       onCourseCreated(course, document);
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("We couldn't process this document. Please try selecting another file.");
+    } catch (err: unknown) {
+      console.error('Upload validation error:', err);
+      if (err instanceof AcademicRejectionError) {
+        if (err.classification === 'uncertain') {
+          setErrorMsg("We couldn't verify that this file is academic material. Please upload a clearer syllabus, notes, textbook, assignment, lecture document, or question paper.");
+        } else {
+          setErrorMsg(
+            err.reason ||
+            "This file doesn't appear to be study-related. AI Study Buddy only accepts academic material such as notes, syllabus, textbooks, assignments, lecture slides, and question papers."
+          );
+        }
+      } else if (err instanceof Error) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg("We couldn't process this document. Please check that it is a valid academic file and try again.");
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -159,25 +168,19 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     const deletedDocName = docToDelete.name;
 
     try {
-      // 1. Delete document record, chunks, and linked courses from DB/Storage
       await DocumentService.deleteDocument(targetId);
 
-      // 2. Clear latestResult if it belonged to deleted document
       if (latestResult?.document.id === targetId) {
         setLatestResult(null);
       }
 
-      // 3. IMMEDIATELY update local documents list state for instant UI re-render
-      setDocsList((prev) => prev.filter((d) => d.id !== targetId));
+      setDeletedDocIds((prev) => [...prev, targetId]);
 
-      // 4. Show success toast notification
-      setToastMsg(`${deletedDocName} was deleted.`);
+      setToastMsg(`"${deletedDocName}" was deleted.`);
       setTimeout(() => setToastMsg(null), 3500);
 
-      // 5. Close modal
       setDocToDelete(null);
 
-      // 6. Notify parent component to update global application state
       if (onDocumentDeleted) {
         onDocumentDeleted(targetId);
       } else {
@@ -197,7 +200,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       <input
         ref={fileInputRef}
         type="file"
-        accept="application/pdf,.pdf,.docx,.doc,.txt"
+        accept=".pdf,.docx,.pptx,.txt,.md"
         onChange={handleFileInputChange}
         className="hidden"
         aria-label="Upload study material"
@@ -205,12 +208,50 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 
       {/* Header */}
       <div>
+        <div className="flex items-center gap-2 mb-1 text-cyan-400">
+          <GraduationCap className="w-5 h-5" />
+          <span className="text-xs font-bold uppercase tracking-wider">AI Study Buddy Knowledge Base</span>
+        </div>
         <h1 className="text-3xl font-extrabold text-white tracking-tight">
-          Upload Your Study Material
+          Upload your study material
         </h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Upload your syllabus, notes, or course documents and let AI turn them into a personalized study space.
+        <p className="text-sm text-slate-300 mt-1.5 leading-relaxed">
+          Upload syllabus, notes, textbooks, assignments, question papers, lecture slides, and other academic material.
         </p>
+      </div>
+
+      {/* SUPPORTED ACADEMIC CONTENT BADGES & RESTRICTION NOTICE */}
+      <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            Accepted Academic Content:
+          </span>
+          <span className="text-[11px] font-medium text-amber-400/90 flex items-center gap-1 bg-amber-400/10 px-2.5 py-1 rounded-full border border-amber-400/20">
+            <ShieldAlert className="w-3.5 h-3.5" />
+            Non-academic or unrelated files will be rejected.
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-2 text-xs">
+          {[
+            'Syllabus',
+            'Lecture Notes',
+            'Textbooks',
+            'Assignments',
+            'Question Papers',
+            'Revision Material',
+            'Academic Presentations',
+            'Lab Manuals'
+          ].map((item) => (
+            <span
+              key={item}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-950/40 text-cyan-300 border border-cyan-500/20 font-medium"
+            >
+              <span className="text-emerald-400 font-bold">✓</span> {item}
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* SUCCESS TOAST NOTIFICATION */}
@@ -226,14 +267,17 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
         </div>
       )}
 
-      {/* ERROR ALERT BADGE */}
+      {/* REJECTION / ERROR ALERT BANNER */}
       {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-sm flex items-center justify-between animate-fadeIn">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0" />
-            <span>{errorMsg}</span>
+        <div className="p-4 rounded-2xl bg-rose-950/70 border border-rose-500/50 text-rose-200 text-sm flex items-start justify-between gap-3 shadow-xl animate-fadeIn">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <span className="font-bold text-rose-100 block">File Not Accepted</span>
+              <p className="text-xs text-rose-200/90 leading-relaxed">{errorMsg}</p>
+            </div>
           </div>
-          <button onClick={() => setErrorMsg(null)} className="text-rose-400 hover:text-white">
+          <button onClick={() => setErrorMsg(null)} className="text-rose-400 hover:text-white p-1">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -265,10 +309,10 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 
             <div>
               <h3 className="text-xl font-bold text-white">
-                Drop your syllabus here
+                Drop your study material here
               </h3>
               <p className="text-xs text-slate-400 mt-1">
-                Supports PDF, DOCX or TXT (Max {MAX_FILE_SIZE_MB} MB)
+                Supports PDF, DOCX, PPTX, TXT, MD (Max {maxFileSizeMB} MB)
               </p>
             </div>
 
@@ -295,7 +339,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
               </div>
               <div>
                 <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  Ready to analyze
+                  Ready to verify & process
                 </span>
                 <h3 className="text-xl font-bold text-white mt-1">{selectedFile.name}</h3>
                 <p className="text-xs text-slate-400 mt-0.5">
@@ -327,7 +371,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-xs text-slate-400">
-              Clicking <strong className="text-slate-200">Analyze Material</strong> will extract topics, create units, and ground NOVA doubt solving.
+              Clicking <strong className="text-slate-200">Verify & Analyze Material</strong> will check academic relevance, extract topics, and prepare your study workspace.
             </p>
             <Button
               type="button"
@@ -337,7 +381,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
               icon={<Sparkles className="w-5 h-5" />}
               onClick={handleStartAnalysis}
             >
-              Analyze Material
+              Verify & Analyze Material
             </Button>
           </div>
         </GlassCard>
@@ -350,10 +394,20 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             <Loader2 className="w-7 h-7 text-cyan-400 animate-spin" />
             <div>
               <h4 className="text-lg font-bold text-white tracking-wide">
-                Stage: {currentStage === 'uploading' ? 'Uploading...' : currentStage === 'reading' ? 'Reading your material...' : currentStage === 'understanding' ? 'Understanding the content...' : currentStage === 'organizing' ? 'Preparing your study space...' : 'Ready!'}
+                {currentStage === 'uploading'
+                  ? 'Uploading...'
+                  : currentStage === 'reading'
+                  ? 'Reading document...'
+                  : currentStage === 'understanding'
+                  ? 'Checking study relevance...'
+                  : currentStage === 'organizing'
+                  ? 'Preparing your study material...'
+                  : 'Finalizing...'}
               </h4>
               <p className="text-xs text-cyan-300">
-                NOVA is reading document text, extracting topics, and structuring your units...
+                {currentStage === 'understanding'
+                  ? 'Verifying that this file is genuine study material and not unrelated content...'
+                  : 'Extracting content, building concept units, and grounding NOVA AI tutor...'}
               </p>
             </div>
             <span className="ml-auto text-xl font-extrabold text-white">{progress}%</span>
@@ -361,23 +415,23 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 
           <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-300 rounded-full"
+              className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 transition-all duration-300 rounded-full"
               style={{ width: `${progress}%` }}
             />
           </div>
 
           <div className="grid grid-cols-4 gap-2 text-center text-xs">
-            <div className={`p-2.5 rounded-xl border ${progress >= 20 ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 font-bold' : 'bg-slate-950/40 border-slate-800 text-slate-500'}`}>
-              1. Uploading
+            <div className={`p-2.5 rounded-xl border ${progress >= 15 ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 font-bold' : 'bg-slate-950/40 border-slate-800 text-slate-500'}`}>
+              1. Uploading...
             </div>
-            <div className={`p-2.5 rounded-xl border ${progress >= 45 ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 font-bold' : 'bg-slate-950/40 border-slate-800 text-slate-500'}`}>
-              2. Reading
+            <div className={`p-2.5 rounded-xl border ${progress >= 35 ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 font-bold' : 'bg-slate-950/40 border-slate-800 text-slate-500'}`}>
+              2. Reading document...
             </div>
-            <div className={`p-2.5 rounded-xl border ${progress >= 70 ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 font-bold' : 'bg-slate-950/40 border-slate-800 text-slate-500'}`}>
-              3. Understanding
+            <div className={`p-2.5 rounded-xl border ${progress >= 65 ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 font-bold' : 'bg-slate-950/40 border-slate-800 text-slate-500'}`}>
+              3. Checking study relevance...
             </div>
-            <div className={`p-2.5 rounded-xl border ${progress >= 90 ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 font-bold' : 'bg-slate-950/40 border-slate-800 text-slate-500'}`}>
-              4. Organizing
+            <div className={`p-2.5 rounded-xl border ${progress >= 85 ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 font-bold' : 'bg-slate-950/40 border-slate-800 text-slate-500'}`}>
+              4. Preparing study material...
             </div>
           </div>
         </GlassCard>
@@ -386,14 +440,27 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       {/* SUCCESS RESULT SUMMARY CARD */}
       {latestResult && !isProcessing && (
         <GlassCard className="border-emerald-500/40 bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/30 p-8 space-y-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 mt-0.5">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">Course Created: {latestResult.course.title}</h3>
-                <p className="text-xs text-slate-300">{latestResult.document.name} processed and indexed successfully.</p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Academic Approved
+                  </span>
+                  <span className="text-[10px] font-semibold text-slate-400">
+                    Confidence: {(latestResult.validation.confidence * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-white">{latestResult.course.title}</h3>
+                <p className="text-xs text-slate-300">
+                  {latestResult.document.name} • Subject: <strong className="text-cyan-300">{latestResult.validation.subject || 'Academic'}</strong> • Type: <strong className="text-indigo-300">{latestResult.validation.materialType.replace('_', ' ')}</strong>
+                </p>
+                <p className="text-xs text-emerald-400/90 italic pt-1">
+                  "{latestResult.validation.reason}"
+                </p>
               </div>
             </div>
             <Button
@@ -420,49 +487,124 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
               <span className="text-xl font-extrabold text-blue-400">✓ {latestResult.document.conceptsExtracted} Concepts</span>
             </div>
             <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
-              <span className="text-xs text-slate-400 block">Study Space</span>
-              <span className="text-xl font-extrabold text-amber-400">✓ Ready</span>
+              <span className="text-xs text-slate-400 block">Study Status</span>
+              <span className="text-xl font-extrabold text-amber-400">✓ Ready for AI</span>
             </div>
           </div>
         </GlassCard>
       )}
 
-      {/* UPLOADED DOCUMENTS LIST */}
+      {/* MY STUDY MATERIAL / UPLOADED DOCUMENTS LIST */}
       <div className="space-y-4">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-          <FileText className="w-5 h-5 text-cyan-400" />
-          Uploaded Study Documents ({docsList.length})
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <FileText className="w-5 h-5 text-cyan-400" />
+            My Study Material ({docsList.length})
+          </h3>
+          <span className="text-xs text-slate-400">
+            Only approved academic documents are indexed for AI
+          </span>
+        </div>
 
         {docsList.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {docsList.map((doc) => (
-              <GlassCard key={doc.id} className="border-slate-800 flex items-center justify-between p-4 hover:border-slate-700 transition-colors">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400 flex-shrink-0">
-                    <BookOpen className="w-6 h-6" />
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-bold text-white truncate">{doc.name}</h4>
-                    <p className="text-xs text-slate-400 truncate">
-                      {doc.sizeFormatted} • {doc.unitsDetected} Units • {doc.topicsIdentified} Topics
-                    </p>
-                  </div>
-                </div>
+              <GlassCard key={doc.id} className="border-slate-800 p-5 hover:border-slate-700 transition-colors space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3.5 overflow-hidden">
+                    <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400 flex-shrink-0 mt-0.5">
+                      <BookOpen className="w-6 h-6" />
+                    </div>
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-base font-bold text-white truncate">{doc.name}</h4>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                          Status: Ready
+                        </span>
+                        {doc.academicConfidence && (
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                            Confidence: {(doc.academicConfidence * 100).toFixed(0)}%
+                          </span>
+                        )}
+                      </div>
 
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hidden sm:inline-block">
-                    Grounded
-                  </span>
+                      <p className="text-xs text-slate-300">
+                        <span className="text-slate-400 font-medium">Subject:</span>{' '}
+                        <strong className="text-white">{doc.subject || 'Course Syllabus'}</strong>
+                        {' • '}
+                        <span className="text-slate-400 font-medium">Type:</span>{' '}
+                        <span className="text-cyan-300 capitalize">{doc.materialType ? doc.materialType.replace('_', ' ') : 'Lecture Notes'}</span>
+                        {' • '}
+                        <span className="text-slate-400">{doc.sizeFormatted}</span>
+                      </p>
+
+                      {doc.academicReason && (
+                        <p className="text-[11px] text-slate-400 line-clamp-1 italic">
+                          {doc.academicReason}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => setDocToDelete(doc)}
                     aria-label={`Delete ${doc.name}`}
-                    className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-500/40"
+                    className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer flex-shrink-0"
                     title="Delete document"
                   >
                     <Trash2 className="w-4.5 h-4.5" />
                   </button>
+                </div>
+
+                {/* STUDY ACTIONS FOR APPROVED MATERIAL */}
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('chat')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-cyan-950/60 text-slate-300 hover:text-cyan-300 border border-slate-700/50 hover:border-cyan-500/30 text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
+                      Ask AI
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('course')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-indigo-950/60 text-slate-300 hover:text-indigo-300 border border-slate-700/50 hover:border-indigo-500/30 text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5 text-indigo-400" />
+                      Explain
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('quiz')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-emerald-950/60 text-slate-300 hover:text-emerald-300 border border-slate-700/50 hover:border-emerald-500/30 text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      <FileQuestion className="w-3.5 h-3.5 text-emerald-400" />
+                      Generate Quiz
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('course')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-purple-950/60 text-slate-300 hover:text-purple-300 border border-slate-700/50 hover:border-purple-500/30 text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      <Layers className="w-3.5 h-3.5 text-purple-400" />
+                      Summarize
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('revision')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-amber-950/60 text-slate-300 hover:text-amber-300 border border-slate-700/50 hover:border-amber-500/30 text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                      Create Revision Plan
+                    </button>
+                  </div>
+
+                  <span className="text-[11px] text-slate-500">
+                    {doc.unitsDetected} Units • {doc.topicsIdentified} Topics
+                  </span>
                 </div>
               </GlassCard>
             ))}
@@ -474,7 +616,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             </div>
             <h4 className="text-base font-bold text-white mb-1">Your study space is empty</h4>
             <p className="text-xs text-slate-400 max-w-sm mx-auto mb-4">
-              Upload your syllabus or notes to start learning with NOVA.
+              Upload your syllabus or study notes to start learning with NOVA.
             </p>
             <Button
               type="button"

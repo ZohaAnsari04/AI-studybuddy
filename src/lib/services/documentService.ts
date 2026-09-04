@@ -1,30 +1,137 @@
 import { supabase, isSupabaseConfigured } from '../supabase/client';
-import { StudyDocument, Course, DocumentChunk } from '../../types';
+import { StudyDocument, Course, AcademicValidationResult } from '../../types';
 import { DocumentParser } from '../documents/parser';
 import { StorageService } from '../storage/db';
+import { extractDocumentContent, ExtractedDocumentContent } from '../documents/textExtractor';
+import { validateFileFormat, classifyAcademicContent } from '../ai/academicClassifier';
+
+export class AcademicRejectionError extends Error {
+  classification: 'non_academic' | 'uncertain';
+  confidence: number;
+  materialType?: string;
+  reason: string;
+
+  constructor(reason: string, classification: 'non_academic' | 'uncertain', confidence: number, materialType?: string) {
+    super(reason);
+    this.name = 'AcademicRejectionError';
+    this.reason = reason;
+    this.classification = classification;
+    this.confidence = confidence;
+    this.materialType = materialType;
+  }
+}
 
 export class DocumentService {
+  /**
+   * Complete, authoritative upload and academic verification pipeline.
+   * STRICT RULE: ONLY genuine study/academic materials are persisted.
+   * Invalid, non-academic, duplicate, or unverified documents are REJECTED IMMEDIATELY
+   * and NEVER saved to Supabase Storage, PostgreSQL, or local storage.
+   */
   static async uploadAndProcessDocument(
     file: File,
     onProgress?: (stage: StudyDocument['status'], percent: number) => void
-  ): Promise<{ course: Course; document: StudyDocument }> {
-    // 1. Parse File & Extract Structure locally
-    const { course, document } = await DocumentParser.parseFileAndCreateCourse(file, onProgress);
+  ): Promise<{ course: Course; document: StudyDocument; validation: AcademicValidationResult }> {
+    // ----------------------------------------------------
+    // STAGE 1: LEVEL 1 FILE VALIDATION
+    // ----------------------------------------------------
+    onProgress?.('uploading', 15);
+    const formatCheck = validateFileFormat(file);
+    if (!formatCheck.isValid) {
+      throw new Error(formatCheck.error || 'Invalid file format');
+    }
 
-    // 2. If Supabase is configured, persist in PostgreSQL & Storage
+    // ----------------------------------------------------
+    // STAGE 2: DOCUMENT CONTENT EXTRACTION
+    // ----------------------------------------------------
+    onProgress?.('reading', 35);
+    let extracted: ExtractedDocumentContent;
+    try {
+      extracted = await extractDocumentContent(file);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      throw new Error(`We couldn't read this file: ${errMsg}. Please check that the document is not corrupted and try again.`);
+    }
+
+    // ----------------------------------------------------
+    // STAGE 3: DUPLICATE DETECTION CHECK
+    // ----------------------------------------------------
+    if (StorageService.hasDocumentHash(extracted.hash)) {
+      throw new Error('This study material has already been added.');
+    }
+
+    // Also check Supabase DB for duplicate hash if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData.user?.id;
+        if (userId) {
+          const { data: existingDoc } = await supabase
+            .from('documents')
+            .select('id, name')
+            .eq('user_id', userId)
+            .eq('content_hash', extracted.hash)
+            .maybeSingle();
+
+          if (existingDoc) {
+            throw new Error('This study material has already been added.');
+          }
+        }
+      } catch (dupErr) {
+        if (dupErr instanceof Error && dupErr.message.includes('already been added')) {
+          throw dupErr;
+        }
+        // ignore other transient query checks
+      }
+    }
+
+    // ----------------------------------------------------
+    // STAGE 4: LEVEL 2 ACADEMIC CONTENT CLASSIFICATION
+    // ----------------------------------------------------
+    onProgress?.('understanding', 65);
+    const validation = await classifyAcademicContent(file.name, extracted);
+
+    if (!validation.isAcademic || validation.classification !== 'academic') {
+      // STRICT SECURITY REQUIREMENT:
+      // Abort immediately without storing ANY files in Supabase Storage or Database.
+      throw new AcademicRejectionError(
+        validation.reason,
+        validation.classification as 'non_academic' | 'uncertain',
+        validation.confidence,
+        validation.materialType
+      );
+    }
+
+    // ----------------------------------------------------
+    // STAGE 5: STRUCTURE COURSE & STUDY UNITS
+    // ----------------------------------------------------
+    onProgress?.('organizing', 85);
+    const { course, document } = DocumentParser.buildCourseFromValidatedContent(
+      file,
+      extracted,
+      validation,
+      onProgress
+    );
+
+    // ----------------------------------------------------
+    // STAGE 6: PERSIST ONLY APPROVED MATERIAL IN SUPABASE
+    // ----------------------------------------------------
     if (isSupabaseConfigured && supabase) {
       try {
         const { data: userData } = await supabase.auth.getUser();
         const userId = userData.user?.id;
 
         if (userId) {
-          // Upload file to Supabase Storage bucket 'study_materials'
-          const fileExt = file.name.split('.').pop();
-          const filePath = `${userId}/${Date.now()}.${fileExt}`;
-          await supabase.storage.from('study_materials').upload(filePath, file);
+          // 6a. Upload to Supabase Storage only after approval
+          const fileExt = file.name.split('.').pop() || 'pdf';
+          const filePath = `${userId}/${Date.now()}_${extracted.hash.slice(0, 8)}.${fileExt}`;
+          const { error: uploadErr } = await supabase.storage.from('study_materials').upload(filePath, file);
+          if (uploadErr) {
+            console.warn('Storage bucket upload warning:', uploadErr.message);
+          }
 
-          // Insert document row
-          const { data: docRow } = await supabase
+          // 6b. Insert document row with full academic metadata
+          const { data: docRow, error: docErr } = await supabase
             .from('documents')
             .insert({
               user_id: userId,
@@ -35,15 +142,20 @@ export class DocumentService {
               status: 'ready',
               units_detected: document.unitsDetected,
               topics_identified: document.topicsIdentified,
-              concepts_extracted: document.conceptsExtracted
+              concepts_extracted: document.conceptsExtracted,
+              content_hash: extracted.hash,
+              material_type: validation.materialType,
+              subject: validation.subject,
+              academic_confidence: validation.confidence,
+              verification_status: 'approved'
             })
             .select()
             .single();
 
-          if (docRow) {
+          if (docRow && !docErr) {
             document.id = docRow.id;
 
-            // Insert document chunks into PostgreSQL
+            // 6c. Insert document chunks into PostgreSQL for RAG
             if (document.chunks && document.chunks.length > 0) {
               const chunkRows = document.chunks.map((c) => ({
                 document_id: docRow.id,
@@ -56,7 +168,7 @@ export class DocumentService {
               await supabase.from('document_chunks').insert(chunkRows);
             }
 
-            // Insert course row
+            // 6d. Insert course row
             const { data: courseRow } = await supabase
               .from('courses')
               .insert({
@@ -79,15 +191,19 @@ export class DocumentService {
           }
         }
       } catch (err) {
-        console.error('Supabase persistence fallback to local storage:', err);
+        console.error('Supabase persistence error, relying on isolated local storage:', err);
       }
     }
 
-    // 3. Always save in StorageService (isolated per active user session)
+    // ----------------------------------------------------
+    // STAGE 7: SAVE IN ACTIVE WORKSPACE STORAGE
+    // ----------------------------------------------------
     StorageService.addCourse(course);
     StorageService.addDocument(document);
 
-    return { course, document };
+    onProgress?.('ready', 100);
+
+    return { course, document, validation };
   }
 
   static async deleteDocument(docId: string): Promise<void> {
@@ -97,7 +213,6 @@ export class DocumentService {
         const userId = userData.user?.id;
 
         if (userId) {
-          // Get storage path before row deletion
           const { data: docRow } = await supabase
             .from('documents')
             .select('storage_path')
@@ -109,7 +224,6 @@ export class DocumentService {
             await supabase.storage.from('study_materials').remove([docRow.storage_path]);
           }
 
-          // RLS ensures only owned document and cascading chunks/courses are deleted
           await supabase.from('documents').delete().eq('id', docId).eq('user_id', userId);
         }
       } catch (err) {
@@ -117,7 +231,6 @@ export class DocumentService {
       }
     }
 
-    // StorageService handles local storage deletion
     StorageService.deleteDocument(docId);
   }
 }

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { StorageService } from './lib/storage/db';
 import { supabase, isSupabaseConfigured } from './lib/supabase/client';
 import { UserProfile, Course, StudyDocument, RevisionTask } from './types';
-import { Sidebar } from './components/common/Sidebar';
 import { TopBar } from './components/common/TopBar';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { DocumentUploader } from './components/course/DocumentUploader';
@@ -76,7 +75,6 @@ export function App() {
 
   // UI state
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const handleNavigate = (tab: string, topicId?: string) => {
     if (topicId) setSelectedTopicId(topicId);
@@ -125,28 +123,17 @@ export function App() {
         />
       </div>
 
-      <div className="flex min-h-screen relative z-10">
-        {/* Sidebar */}
-        <Sidebar
+      <div className="flex flex-col min-h-screen relative z-10">
+        <TopBar
+          user={user}
           activeTab={activeTab}
-          onNavigate={(tab) => handleNavigate(tab)}
           isDemoMode={isDemoMode}
+          onNavigate={(tab) => handleNavigate(tab)}
           onExitDemoMode={handleExitDemoMode}
           onLaunchDemoMode={handleLaunchDemoMode}
-          isMobileOpen={isMobileSidebarOpen}
-          onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <TopBar
-            user={user}
-            activeTab={activeTab}
-            onNavigate={(tab) => handleNavigate(tab)}
-            onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
-          />
-
-          <main className="flex-1 p-4 lg:p-8 max-w-7xl mx-auto w-full overflow-x-hidden">
+        <main className="flex-1 p-4 lg:p-8 max-w-7xl mx-auto w-full overflow-x-hidden">
               {activeTab === 'dashboard' && (
                 <DashboardView
                   user={user}
@@ -248,10 +235,9 @@ export function App() {
                 </div>
               )}
             </main>
-          </div>
-        </div>
+      </div>
 
-        {/* Auth / Demo Mode Launcher Modal */}
+      {/* Auth / Demo Mode Launcher Modal */}
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}

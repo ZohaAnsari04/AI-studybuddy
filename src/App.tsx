@@ -98,7 +98,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080b0f] text-[#f8fafc] relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#080b0f] text-[#f8fafc] relative overflow-x-clip">
       {/* Whole website interactive WebThreads background */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-40">
         <WebThreads
@@ -133,7 +133,7 @@ export function App() {
           onLaunchDemoMode={handleLaunchDemoMode}
         />
 
-        <main className="flex-1 p-4 lg:p-8 max-w-7xl mx-auto w-full overflow-x-hidden">
+        <main className="flex-1 p-4 lg:p-8 max-w-7xl mx-auto w-full">
               {activeTab === 'dashboard' && (
                 <DashboardView
                   user={user}

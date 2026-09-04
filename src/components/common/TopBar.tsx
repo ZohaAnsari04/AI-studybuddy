@@ -30,7 +30,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onLaunchDemoMode
 }) => {
   return (
-    <header className="sticky top-0 z-30 min-h-[4.5rem] glass-nav px-4 lg:px-8 flex items-center justify-between gap-4 py-2 border-b border-slate-800/80">
+    <header className="sticky top-0 z-50 w-full min-h-[4.5rem] glass-nav px-4 lg:px-8 flex items-center justify-between gap-4 py-2 border-b border-slate-800/80 bg-[#080b0f]/90 backdrop-blur-2xl shadow-lg shadow-black/30">
       {/* Brand title and Demo status */}
       <div className="flex items-center gap-2.5">
         <div

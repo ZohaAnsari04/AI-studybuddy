@@ -8,74 +8,105 @@ export const DEMO_USER: UserProfile = {
 };
 
 export const DEMO_COURSE: Course = {
-  id: 'dsa-201',
-  title: 'Data Structures & Algorithms',
-  code: 'CS 201',
-  description: 'Sample demo course covering linear and non-linear data structures, space/time complexity analysis, and graph algorithms.',
-  uploadedAt: '2026-08-20',
+  id: 'course-neuropath',
+  title: 'Neuropath',
+  code: 'COURSE-290',
+  description: 'Course dynamically created from uploaded study material: neuropath.docx.',
+  uploadedAt: '2026-09-04',
   documentsCount: 1,
-  totalTopics: 5,
-  masteredTopics: 3,
-  progressPercent: 60,
+  totalTopics: 3,
+  masteredTopics: 1,
+  progressPercent: 33,
   units: [
     {
       id: 'unit-1',
       unitNumber: 1,
-      title: 'Arrays & Dynamic Allocation',
-      description: 'Contiguous memory allocation and dynamic resizing.',
+      title: 'Unit 1 — Fundamentals & Core Principles',
+      description: 'Overview of basic concepts, system architectures, and core primitives in neuropathology.',
       topics: [
         {
-          id: 'topic-arrays-101',
+          id: 'topic-neuro-1',
           unitId: 'unit-1',
-          unitTitle: 'Arrays & Matrices',
-          title: 'Arrays & Dynamic Resizing',
-          description: 'Understanding contiguous memory allocation and O(1) random index access.',
+          unitTitle: 'Unit 1 — Fundamentals & Core Principles',
+          title: 'Key Topic: Neural Pathways & Cellular Pathology',
+          description: 'Fundamental cellular mechanisms, glial responses, and primary structural pathology.',
           status: 'mastered',
-          difficulty: 'easy',
-          confidenceScore: 95,
-          estimatedMinutes: 15,
-          technicalExplanation: 'An array stores elements in contiguous memory locations, allowing O(1) random access via index offset arithmetic.',
-          eli10Explanation: 'Imagine a row of numbered lockers next to each other. You can walk straight to locker #5 instantly!',
-          analogy: 'A row of egg cartons where each egg has a specific slot.',
-          example: 'Accessing arr[4] takes constant time O(1) because memory location is offset directly.',
-          keyPoints: ['Contiguous memory allocation', 'O(1) random read access', 'Dynamic arrays double capacity when full'],
-          commonMistakes: ['Off-by-one index errors'],
+          difficulty: 'medium',
+          confidenceScore: 92,
+          estimatedMinutes: 20,
+          technicalExplanation: 'Neuropathology focuses on structural and functional alterations in the central and peripheral nervous systems, detailing astrocytic reactions, microglial activation, and axonal degeneration.',
+          eli10Explanation: 'Think of your brain like a giant city power grid. Neuropathology investigates what happens when specific wires or power stations get damaged!',
+          analogy: 'A master electrician inspecting broken underground communication cables.',
+          example: 'Demyelination in nerve fibers causing delayed action potential transmission.',
+          keyPoints: ['Cellular pathology of central nervous system', 'Glial response to injury', 'Axonal degeneration and myelin loss'],
+          commonMistakes: ['Confusing demyelinating conditions with primary axonal loss'],
           quickCheck: {
-            question: 'What is the time complexity to access element at index 500 in an array?',
-            options: ['O(n)', 'O(log n)', 'O(1)', 'O(n²)'],
-            correctIndex: 2,
-            explanation: 'Index arithmetic enables constant time O(1) lookup.'
+            question: 'What is the primary supportive glial cell involved in scar formation (gliosis) after CNS injury?',
+            options: ['Astrocyte', 'Microglia', 'Oligodendrocyte', 'Ependymal cell'],
+            correctIndex: 0,
+            explanation: 'Astrocytes undergo reactive astrogliosis to form glial scars following brain injury.'
           }
         }
       ]
     },
     {
-      id: 'unit-4',
-      unitNumber: 4,
-      title: 'Trees & Binary Search Trees',
-      description: 'Hierarchical tree structure maintaining ordering invariant.',
+      id: 'unit-2',
+      unitNumber: 2,
+      title: 'Unit 2 — System Components & Clinical Patterns',
+      description: 'Detailed analysis of cerebrovascular disorders, trauma, and infectious neuro-pathologies.',
       topics: [
         {
-          id: 'topic-bst',
-          unitId: 'unit-4',
-          unitTitle: 'Trees & BST',
-          title: 'Binary Search Trees (BST)',
-          description: 'Tree maintaining Left < Root < Right ordering invariant.',
+          id: 'topic-neuro-2',
+          unitId: 'unit-2',
+          unitTitle: 'Unit 2 — System Components & Clinical Patterns',
+          title: 'Key Topic: Ischemic Stroke & Vascular Pathophysiology',
+          description: 'Mechanisms of focal ischemic injury, penumbra rescue, and excitotoxicity.',
           status: 'needs_review',
-          difficulty: 'medium',
-          confidenceScore: 60,
-          estimatedMinutes: 25,
-          technicalExplanation: 'A Binary Search Tree maintains keys where left subtree < root < right subtree. Average operations run in O(log n) time.',
-          eli10Explanation: 'Imagine guessing a secret number between 1 and 100. Guessing 50 eliminates half the numbers!',
-          analogy: 'Organizing books on a shelf by size.',
-          example: 'Searching 14: Start 10 -> Right 15 -> Left 14. Found in 2 comparisons!',
-          keyPoints: ['Left < Root < Right invariant', 'In-order traversal yields sorted order', 'Pre-sorted inputs skew tree into O(n) list'],
-          commonMistakes: ['Forgetting balancing leads to linear lookup'],
+          difficulty: 'hard',
+          confidenceScore: 58,
+          estimatedMinutes: 30,
+          technicalExplanation: 'Focal cerebral ischemia initiates an ischemic cascade: failure of Na+/K+ ATPase, cellular depolarization, excessive glutamate release, intracellular calcium overload, and necrosis in the ischemic core.',
+          eli10Explanation: 'When a water pipe to a garden gets blocked, flowers at the center wither fast, but outer flowers can be saved if water is turned back on quickly!',
+          analogy: 'A bottleneck in a factory assembly line starving subsequent stations of parts.',
+          example: 'Thrombolytic therapy administered within therapeutic window to salvage ischemic penumbra.',
+          keyPoints: ['Ischemic penumbra vs ischemic core', 'Glutamate-mediated excitotoxicity', 'Therapeutic time window for reperfusion'],
+          commonMistakes: ['Assuming all ischemic damage happens instantaneously without a salvagable penumbra'],
           quickCheck: {
-            question: 'What happens to a BST search time if keys are inserted in pre-sorted order?',
-            options: ['Stays O(log n)', 'Degenerates to linear search O(n)', 'Becomes O(1)', 'Becomes O(n²)'],
-            correctIndex: 1,
-            explanation: 'Pre-sorted inputs form a skewed chain resembling a linked list.'
+            question: 'What is the salvageable hypoperfused tissue surrounding an ischemic infarct called?',
+            options: ['Ischemic Penumbra', 'Necrotic Core', 'Liquefactive Zone', 'Gliosis Margin'],
+            correctIndex: 0,
+            explanation: 'The ischemic penumbra represents functionally compromised but structurally viable tissue that can be rescued by timely reperfusion.'
+          }
+        }
+      ]
+    },
+    {
+      id: 'unit-3',
+      unitNumber: 3,
+      title: 'Unit 3 — Advanced Diagnostic Evaluation & Degenerative Disorders',
+      description: 'Neurodegenerative markers, tauopathies, amyloid deposition, and histopathological diagnosis.',
+      topics: [
+        {
+          id: 'topic-neuro-3',
+          unitId: 'unit-3',
+          unitTitle: 'Unit 3 — Advanced Diagnostic Evaluation',
+          title: 'Key Topic: Protein Aggregation & Neurodegeneration',
+          description: 'Misfolded protein cascades in Alzheimer disease, Parkinson disease, and ALS.',
+          status: 'not_started',
+          difficulty: 'hard',
+          confidenceScore: 0,
+          estimatedMinutes: 35,
+          technicalExplanation: 'Neurodegenerative diseases are characterized by progressive dysfunction and death of specific neuronal populations, often caused by toxic gain-of-function protein aggregates like amyloid-beta, hyperphosphorylated tau, and alpha-synuclein.',
+          eli10Explanation: 'Imagine sticky trash building up in recycling machines until the whole recycling plant stops working!',
+          analogy: 'Sticky gum clogging gears inside a delicate watch.',
+          example: 'Extracellular amyloid plaques and intracellular neurofibrillary tangles in cortical neurons.',
+          keyPoints: ['Toxic protein oligomers and fibrils', 'Selective neuronal vulnerability', 'Histochemical staining biomarkers'],
+          commonMistakes: ['Assuming plaques and tangles are identical in protein composition'],
+          quickCheck: {
+            question: 'Which intracellular aggregate is primarily composed of hyperphosphorylated tau protein?',
+            options: ['Neurofibrillary tangle', 'Amyloid plaque', 'Lewy body', 'Hirano body'],
+            correctIndex: 0,
+            explanation: 'Neurofibrillary tangles are composed of hyperphosphorylated tau protein inside neurons.'
           }
         }
       ]
@@ -85,23 +116,39 @@ export const DEMO_COURSE: Course = {
 
 export const DEMO_DOCUMENTS: StudyDocument[] = [
   {
-    id: 'doc-dsa-demo',
-    name: 'Data Structures Syllabus.pdf',
-    sizeFormatted: '4.2 MB',
-    uploadedAt: '2026-08-20 10:30 AM',
+    id: 'doc-neuropath-demo',
+    name: 'neuropath.docx',
+    sizeFormatted: '2.4 MB',
+    uploadedAt: '2026-09-04 07:15 PM',
     status: 'ready',
     progressPercent: 100,
-    unitsDetected: 2,
-    topicsIdentified: 5,
-    conceptsExtracted: 42,
+    unitsDetected: 3,
+    topicsIdentified: 3,
+    conceptsExtracted: 18,
     chunks: [
       {
-        id: 'chunk-1',
-        documentId: 'doc-dsa-demo',
-        documentName: 'Data Structures Syllabus.pdf',
-        unitTitle: 'Unit 4 — Trees & Binary Search Trees',
-        pageNumber: 18,
-        text: 'A Binary Search Tree (BST) maintains the property that left keys < root < right keys. Pre-sorted input insertion skews the tree, causing O(log n) lookup to degenerate into linear O(n) search.'
+        id: 'chunk-np-1',
+        documentId: 'doc-neuropath-demo',
+        documentName: 'neuropath.docx',
+        unitTitle: 'Unit 1 — Fundamentals & Core Principles',
+        pageNumber: 1,
+        text: 'Neuropathology: Core cellular responses to injury. Astrocytes undergo reactive gliosis. Demyelinating lesions impair saltatory conduction along axon nodes.'
+      },
+      {
+        id: 'chunk-np-2',
+        documentId: 'doc-neuropath-demo',
+        documentName: 'neuropath.docx',
+        unitTitle: 'Unit 2 — System Components & Clinical Patterns',
+        pageNumber: 4,
+        text: 'Ischemic cerebrovascular disease: Focal ischemia produces a necrotic core surrounded by the ischemic penumbra, susceptible to excitotoxic injury and calcium influx.'
+      },
+      {
+        id: 'chunk-np-3',
+        documentId: 'doc-neuropath-demo',
+        documentName: 'neuropath.docx',
+        unitTitle: 'Unit 3 — Advanced Diagnostic Evaluation',
+        pageNumber: 7,
+        text: 'Neurodegenerative conditions exhibit characteristic protein aggregates: extracellular amyloid-beta plaques and intracellular tau neurofibrillary tangles.'
       }
     ]
   }
@@ -110,12 +157,12 @@ export const DEMO_DOCUMENTS: StudyDocument[] = [
 export const DEMO_REVISION: RevisionTask[] = [
   {
     id: 'task-demo-1',
-    title: 'Review Binary Search Tree Deletion & Skewness',
-    topicId: 'topic-bst',
-    topicTitle: 'Binary Search Trees (BST)',
+    title: 'Review Ischemic Stroke & Vascular Pathophysiology',
+    topicId: 'topic-neuro-2',
+    topicTitle: 'Ischemic Stroke & Vascular Pathophysiology',
     date: new Date().toISOString().split('T')[0],
-    timeSlot: '06:00 PM – 06:30 PM',
-    durationMinutes: 30,
+    timeSlot: '08:00 PM – 08:45 PM',
+    durationMinutes: 45,
     type: 'review',
     status: 'pending',
     priority: 'high',
@@ -127,14 +174,14 @@ export const DEMO_CHAT: ChatMessage[] = [
   {
     id: 'msg-demo-1',
     sender: 'nova',
-    text: 'Welcome to the StudySphere AI **Demo Workspace**! I am NOVA, grounded in the sample Data Structures & Algorithms syllabus. Ask any question to test grounded doubt solving.',
-    timestamp: '10:00 AM',
+    text: 'Welcome to the StudySphere AI **Demo Workspace**! I am NOVA, grounded in your uploaded study material **neuropath.docx**. Ask any question to test grounded doubt solving.',
+    timestamp: '08:00 PM',
     citations: [
       {
-        docName: 'Data Structures Syllabus.pdf',
-        unit: 'Unit 4 — Trees & Binary Search Trees',
-        page: 'Page 18',
-        snippet: 'A Binary Search Tree (BST) maintains the property that left keys < root < right keys.'
+        docName: 'neuropath.docx',
+        unit: 'Unit 2 — System Components & Clinical Patterns',
+        page: 'Page 4',
+        snippet: 'Ischemic cerebrovascular disease: Focal ischemia produces a necrotic core surrounded by the ischemic penumbra.'
       }
     ]
   }
@@ -155,7 +202,11 @@ const STORAGE_KEYS = {
 
 export class StorageService {
   static isDemoMode(): boolean {
-    return localStorage.getItem(STORAGE_KEYS.IS_DEMO_MODE) === 'true';
+    const val = localStorage.getItem(STORAGE_KEYS.IS_DEMO_MODE);
+    if (val === null) {
+      return true;
+    }
+    return val === 'true';
   }
 
   static getActiveUserId(): string {

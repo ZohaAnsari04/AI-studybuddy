@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { StorageService } from './lib/storage/db';
 import { supabase, isSupabaseConfigured } from './lib/supabase/client';
 import { UserProfile, Course, StudyDocument, RevisionTask } from './types';
-import { LandingPage } from './components/landing/LandingPage';
 import { Sidebar } from './components/common/Sidebar';
 import { TopBar } from './components/common/TopBar';
 import { DashboardView } from './components/dashboard/DashboardView';
@@ -18,8 +17,7 @@ import { Button } from './components/common/Button';
 import { Settings, ShieldCheck, Sparkles } from 'lucide-react';
 
 export function App() {
-  // Global view routing
-  const [viewMode, setViewMode] = useState<'landing' | 'app'>('landing');
+  // Global view routing - directly starts at dashboard
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>(undefined);
 
@@ -82,57 +80,47 @@ export function App() {
   const handleNavigate = (tab: string, topicId?: string) => {
     if (topicId) setSelectedTopicId(topicId);
     setActiveTab(tab);
-    if (viewMode === 'landing') setViewMode('app');
   };
 
   const handleLaunchDemoMode = () => {
     StorageService.activateDemoMode();
     refreshStorageData();
-    setViewMode('app');
     setActiveTab('dashboard');
   };
 
   const handleExitDemoMode = () => {
     StorageService.activateRealMode();
     refreshStorageData();
-    setViewMode('app');
     setActiveTab('dashboard');
   };
 
-  const handleCourseCreated = (newCourse: Course, newDoc: StudyDocument) => {
+  const handleCourseCreated = (_newCourse: Course, _newDoc: StudyDocument) => {
     refreshStorageData();
   };
 
   return (
     <div className="min-h-screen bg-[#080b0f] text-[#f8fafc]">
-      {viewMode === 'landing' ? (
-        <LandingPage
-          onStartStudying={() => handleNavigate('dashboard')}
-          onNavigateUpload={() => handleNavigate('upload')}
-          onNavigateLogin={() => setIsAuthOpen(true)}
+      <div className="flex min-h-screen">
+        {/* Sidebar */}
+        <Sidebar
+          activeTab={activeTab}
+          onNavigate={(tab) => handleNavigate(tab)}
+          isDemoMode={isDemoMode}
+          onExitDemoMode={handleExitDemoMode}
+          onLaunchDemoMode={handleLaunchDemoMode}
+          isMobileOpen={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
-      ) : (
-        <div className="flex min-h-screen">
-          {/* Sidebar */}
-          <Sidebar
-            activeTab={activeTab}
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <TopBar
+            user={user}
             onNavigate={(tab) => handleNavigate(tab)}
-            isDemoMode={isDemoMode}
-            onExitDemoMode={handleExitDemoMode}
-            onLaunchDemoMode={handleLaunchDemoMode}
-            isMobileOpen={isMobileSidebarOpen}
-            onCloseMobile={() => setIsMobileSidebarOpen(false)}
+            onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
           />
 
-          {/* Main Content Area */}
-          <div className="flex-1 flex flex-col min-w-0">
-            <TopBar
-              user={user}
-              onNavigate={(tab) => handleNavigate(tab)}
-              onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
-            />
-
-            <main className="flex-1 p-4 lg:p-8 max-w-7xl mx-auto w-full overflow-x-hidden">
+          <main className="flex-1 p-4 lg:p-8 max-w-7xl mx-auto w-full overflow-x-hidden">
               {activeTab === 'dashboard' && (
                 <DashboardView
                   user={user}
@@ -236,9 +224,8 @@ export function App() {
             </main>
           </div>
         </div>
-      )}
 
-      {/* Auth / Demo Mode Launcher Modal */}
+        {/* Auth / Demo Mode Launcher Modal */}
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}

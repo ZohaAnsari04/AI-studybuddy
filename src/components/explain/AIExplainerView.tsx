@@ -41,6 +41,31 @@ export const AIExplainerView: React.FC<AIExplainerViewProps> = ({
   const [userChoice, setUserChoice] = useState<number | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
 
+  const topicToExplain = allTopics.find((t) => t.id === activeTopicId) || defaultTopic;
+
+  const fetchExplanation = async () => {
+    if (!topicToExplain) return;
+    setIsLoading(true);
+    setUserChoice(null);
+    setShowAnswer(false);
+    try {
+      const provider = getAIProvider();
+      const currentLevel = isEli10Toggle ? 'ELI10' : level;
+      const res = await provider.explainConcept(topicToExplain.title, currentLevel);
+      setExplanation(res);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (topicToExplain) {
+      fetchExplanation();
+    }
+  }, [activeTopicId, level, isEli10Toggle]);
+
   if (!defaultTopic || allTopics.length === 0) {
     return (
       <div className="space-y-8 animate-fadeIn max-w-5xl mx-auto">
@@ -74,30 +99,6 @@ export const AIExplainerView: React.FC<AIExplainerViewProps> = ({
       </div>
     );
   }
-
-  const topicToExplain = allTopics.find((t) => t.id === activeTopicId) || defaultTopic;
-
-  const fetchExplanation = async () => {
-    setIsLoading(true);
-    setUserChoice(null);
-    setShowAnswer(false);
-    try {
-      const provider = getAIProvider();
-      const currentLevel = isEli10Toggle ? 'ELI10' : level;
-      const res = await provider.explainConcept(topicToExplain.title, currentLevel);
-      setExplanation(res);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (topicToExplain) {
-      fetchExplanation();
-    }
-  }, [activeTopicId, level, isEli10Toggle]);
 
   return (
     <div className="space-y-8 animate-fadeIn max-w-5xl mx-auto">

@@ -14,6 +14,7 @@ import { RevisionPlannerView } from './components/revision/RevisionPlannerView';
 import { AuthModal } from './components/auth/AuthModal';
 import { GlassCard } from './components/common/GlassCard';
 import { Button } from './components/common/Button';
+import { WebThreads } from './components/common/WebThreads';
 import { Settings, ShieldCheck, Sparkles } from 'lucide-react';
 
 export function App() {
@@ -99,8 +100,32 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080b0f] text-[#f8fafc]">
-      <div className="flex min-h-screen">
+    <div className="min-h-screen bg-[#080b0f] text-[#f8fafc] relative overflow-x-hidden">
+      {/* Whole website interactive WebThreads background */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-40">
+        <WebThreads
+          color1="#06b6d4"
+          color2="#6366f1"
+          color3="#ffffff"
+          speed={0.2}
+          threadCount={7}
+          frequency={3.8}
+          spread={0.24}
+          taper={1.0}
+          position={0.5}
+          fanMode="center"
+          glow={0.03}
+          falloff={0.62}
+          thickness={1.15}
+          brightness={0.8}
+          opacity={0.85}
+          mirror={true}
+          mouseInteraction={true}
+          mouseStrength={0.35}
+        />
+      </div>
+
+      <div className="flex min-h-screen relative z-10">
         {/* Sidebar */}
         <Sidebar
           activeTab={activeTab}
@@ -116,6 +141,7 @@ export function App() {
         <div className="flex-1 flex flex-col min-w-0">
           <TopBar
             user={user}
+            activeTab={activeTab}
             onNavigate={(tab) => handleNavigate(tab)}
             onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
           />

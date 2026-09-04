@@ -87,7 +87,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* CURRENT STUDY MATERIAL CARD OR EMPTY UPLOAD CALLOUT */}
       {hasCourses && activeCourse ? (
-        <GlassCard className="border-cyan-500/40 bg-gradient-to-r from-slate-900 via-slate-900/90 to-cyan-950/40 relative overflow-hidden p-8">
+        <GlassCard className="border-cyan-500/40 bg-gradient-to-r from-slate-900/90 via-slate-900/80 to-cyan-950/40 backdrop-blur-md relative overflow-hidden p-8 group">
           <div className="flex items-start justify-between mb-4">
             <div>
               <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">
@@ -101,7 +101,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <Badge variant="cyan">Active Material</Badge>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 mb-6">
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 mb-6 backdrop-blur-sm">
             <p className="text-xs font-semibold text-slate-300">
               Extracted Material: {activeCourse.description}
             </p>
@@ -145,7 +145,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </GlassCard>
       ) : (
         /* PRISTINE EMPTY STUDY SPACE HERO CARD */
-        <GlassCard className="border-cyan-500/40 bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-950/50 p-10 text-center">
+        <GlassCard className="border-cyan-500/40 bg-gradient-to-r from-slate-950/90 via-slate-900/80 to-cyan-950/50 backdrop-blur-md p-10 text-center relative overflow-hidden">
           <div className="w-16 h-16 rounded-3xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 flex items-center justify-center mx-auto mb-4 glow-cyan">
             <UploadCloud className="w-8 h-8 animate-pulse" />
           </div>

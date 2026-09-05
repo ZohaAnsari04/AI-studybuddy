@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, ShieldCheck, HelpCircle, UploadCloud } from 'lucide-react';
+import { Send, Sparkles, ShieldCheck, UploadCloud } from 'lucide-react';
 import { ChatMessage, StudyDocument, NovaState } from '../../types';
 import { getAIService } from '../../lib/ai/aiService';
 import { RAGService } from '../../lib/services/ragService';
@@ -13,17 +13,20 @@ interface AskNOVAChatProps {
   onNavigate: (tab: string) => void;
 }
 
+let msgSequence = 0;
+function createMessageId(prefix: string): string {
+  msgSequence += 1;
+  return `${prefix}-${msgSequence}`;
+}
+
 export const AskNOVAChat: React.FC<AskNOVAChatProps> = ({ documents, onNavigate }) => {
+  const approvedDocs = documents.filter((d) => d.verificationStatus === 'approved' || (!d.verificationStatus && d.status === 'ready'));
+
   const [messages, setMessages] = useState<ChatMessage[]>(() => StorageService.getChatMessages());
   const [input, setInput] = useState('');
   const [novaState, setNovaState] = useState<NovaState>('IDLE');
   const [selectedDocId, setSelectedDocId] = useState<string>('all');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Sync messages when storage/demo state updates
-  useEffect(() => {
-    setMessages(StorageService.getChatMessages());
-  }, [documents]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -39,7 +42,7 @@ export const AskNOVAChat: React.FC<AskNOVAChatProps> = ({ documents, onNavigate 
 
     const userText = input.trim();
     const userMsg: ChatMessage = {
-      id: `msg-user-${Date.now()}`,
+      id: createMessageId('msg-user'),
       sender: 'user',
       text: userText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -52,15 +55,17 @@ export const AskNOVAChat: React.FC<AskNOVAChatProps> = ({ documents, onNavigate 
 
     try {
       const aiService = getAIService();
-      const docsToUse = selectedDocId === 'all' ? documents : documents.filter((d) => d.id === selectedDocId);
+      const docsToUse = selectedDocId === 'all'
+        ? approvedDocs
+        : approvedDocs.filter((d) => d.id === selectedDocId);
 
-      // Perform RAG vector / chunk search across uploaded document text
-      const { citations } = await RAGService.searchRelevantChunks(userText, docsToUse);
+      // Perform RAG vector / chunk search across uploaded document text with material isolation
+      const { citations } = await RAGService.searchRelevantChunks(userText, docsToUse, 3, selectedDocId);
 
-      const reply = await aiService.answerGroundedQuestion(userText, docsToUse);
+      const reply = await aiService.answerGroundedQuestion(userText, docsToUse, undefined, selectedDocId);
 
       const novaMsg: ChatMessage = {
-        id: `msg-nova-${Date.now()}`,
+        id: createMessageId('msg-nova'),
         sender: 'nova',
         text: reply.text,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -73,8 +78,9 @@ export const AskNOVAChat: React.FC<AskNOVAChatProps> = ({ documents, onNavigate 
       setNovaState('SUCCESS');
     } catch (err) {
       console.error(err);
+      setNovaState('IDLE');
     } finally {
-      setTimeout(() => setNovaState('IDLE'), 1200);
+      setTimeout(() => setNovaState('IDLE'), 1000);
     }
   };
 
@@ -88,21 +94,21 @@ export const AskNOVAChat: React.FC<AskNOVAChatProps> = ({ documents, onNavigate 
             Ask NOVA — Grounded Doubt Solver
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Ask any question. Answers are grounded directly in your uploaded syllabus and notes with citations.
+            Answers are strictly grounded in your approved study material. No hallucinated general knowledge.
           </p>
         </div>
 
-        {/* Document Filter */}
-        {documents.length > 0 && (
+        {/* Document Filter / Isolation Scope */}
+        {approvedDocs.length > 0 && (
           <select
             value={selectedDocId}
             onChange={(e) => setSelectedDocId(e.target.value)}
             className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-semibold focus:outline-none focus:border-cyan-400 cursor-pointer"
           >
-            <option value="all">📚 All Uploaded Documents ({documents.length})</option>
-            {documents.map((d) => (
+            <option value="all">📚 All Approved Material ({approvedDocs.length})</option>
+            {approvedDocs.map((d) => (
               <option key={d.id} value={d.id}>
-                📄 {d.name}
+                📄 {d.name} {d.subject ? `(${d.subject})` : ''}
               </option>
             ))}
           </select>
@@ -117,20 +123,20 @@ export const AskNOVAChat: React.FC<AskNOVAChatProps> = ({ documents, onNavigate 
             <NOVAOrb size="sm" state={novaState} />
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                NOVA AI Agent
+                NOVA AI Study Companion
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  {documents.length > 0 ? 'Document Grounded' : 'General Knowledge Mode'}
+                  {approvedDocs.length > 0 ? 'Strictly Source-Grounded' : 'Awaiting Study Material'}
                 </span>
               </h3>
               <p className="text-[11px] text-cyan-400 font-medium">
-                {documents.length > 0 ? `${documents.length} Study Documents Connected` : 'Upload notes for page-level citations'}
+                {approvedDocs.length > 0 ? `${approvedDocs.length} Approved Document(s) in Scope` : 'Upload notes for grounded answers'}
               </p>
             </div>
           </div>
 
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400">
-            <ShieldCheck className="w-4 h-4 text-cyan-400" />
-            <span>Zero Hallucination Guard</span>
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>Anti-Hallucination Policy Active</span>
           </div>
         </div>
 
@@ -139,13 +145,13 @@ export const AskNOVAChat: React.FC<AskNOVAChatProps> = ({ documents, onNavigate 
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-8">
               <NOVAOrb size="lg" state="IDLE" />
-              <h4 className="text-lg font-bold text-white mt-4">Ask NOVA anything about your studies</h4>
+              <h4 className="text-lg font-bold text-white mt-4">Ask NOVA anything about your uploaded notes</h4>
               <p className="text-xs text-slate-400 max-w-sm mt-1 mb-4">
-                {documents.length > 0
-                  ? 'NOVA is ready to search your uploaded documents and answer your doubts with exact page citations.'
-                  : 'Upload your syllabus or lecture notes to enable page-level citations.'}
+                {approvedDocs.length > 0
+                  ? 'NOVA answers questions using only your approved study documents and cites exact source locations.'
+                  : 'Upload your syllabus, lecture notes, or textbooks to ask questions.'}
               </p>
-              {documents.length === 0 && (
+              {approvedDocs.length === 0 && (
                 <Button variant="primary" size="sm" icon={<UploadCloud className="w-4 h-4" />} onClick={() => onNavigate('upload')}>
                   Upload Study Material
                 </Button>
@@ -173,14 +179,6 @@ export const AskNOVAChat: React.FC<AskNOVAChatProps> = ({ documents, onNavigate 
                     }`}
                   >
                     <p className="whitespace-pre-wrap">{msg.text}</p>
-
-                    {/* Fallback Notice if answer wasn't in docs */}
-                    {msg.isFallback && (
-                      <div className="mt-3 p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
-                        <HelpCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                        <span>Notice: Could not find exact text in uploaded docs. Showing general explanation.</span>
-                      </div>
-                    )}
 
                     {/* Document Source Citations */}
                     {msg.citations && msg.citations.length > 0 && (
@@ -214,7 +212,7 @@ export const AskNOVAChat: React.FC<AskNOVAChatProps> = ({ documents, onNavigate 
             <div className="flex gap-3 max-w-xl mr-auto items-center">
               <NOVAOrb size="sm" state="THINKING" />
               <div className="p-3 rounded-2xl glass-card border-cyan-500/40 text-xs font-semibold text-cyan-300 animate-pulse">
-                NOVA is reading syllabus notes and formulating grounded answer...
+                NOVA is reading your notes and verifying source grounded evidence...
               </div>
             </div>
           )}
@@ -228,7 +226,7 @@ export const AskNOVAChat: React.FC<AskNOVAChatProps> = ({ documents, onNavigate 
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={documents.length > 0 ? "Ask anything about your uploaded study material..." : "Ask NOVA a doubt..."}
+            placeholder={approvedDocs.length > 0 ? "Ask a doubt about your uploaded study notes..." : "Upload notes to ask questions..."}
             className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
           />
           <Button

@@ -60,20 +60,68 @@ export function validateFileFormat(file: File): { isValid: boolean; error?: stri
   return { isValid: true };
 }
 
-// Subject detection dictionary
-const SUBJECT_PATTERNS: { name: string; regex: RegExp }[] = [
-  { name: 'Data Structures & Algorithms', regex: /\b(data structures?|algorithms?|linked list|binary tree|graph theory|stack and queue|sorting|asymptotic notation|big-o|hashing|recursion|dynamic programming)\b/i },
-  { name: 'Operating Systems', regex: /\b(operating systems?|process scheduling|deadlock|semaphore|virtual memory|paging|threading|system calls|file systems|concurrency|ipc)\b/i },
-  { name: 'Database Management Systems', regex: /\b(database|dbms|sql|relational model|normalization|er diagram|indexing|b-tree|acid properties|transactions|query processing)\b/i },
-  { name: 'Computer Networks', regex: /\b(computer networks?|tcp\/ip|osi model|packet switching|routing algorithms|ip addressing|dns|transport layer|network security|firewall)\b/i },
-  { name: 'Software Engineering', regex: /\b(software engineering|agile|scrum|sdlc|software design|uml diagram|unit testing|design patterns|refactoring|version control)\b/i },
-  { name: 'Machine Learning & AI', regex: /\b(machine learning|deep learning|neural networks?|supervised learning|classification|regression|nlp|gradient descent|reinforcement learning|transformers)\b/i },
-  { name: 'Mathematics & Calculus', regex: /\b(calculus|linear algebra|eigenvalues?|matrix multiplication|differential equations?|probability|statistics|discrete mathematics|integration|limits|derivatives)\b/i },
-  { name: 'Digital Logic & Architecture', regex: /\b(computer architecture|digital logic|boolean algebra|karnaugh map|multiplexer|alu|pipeline|cache memory|microprocessor|instruction set|mips)\b/i },
-  { name: 'Physics & Electrical', regex: /\b(thermodynamics|fluid mechanics|electromagnetism|quantum mechanics|circuits|kirchhoff|semiconductor|transistors|ohms law)\b/i },
-  { name: 'Economics & Management', regex: /\b(microeconomics|macroeconomics|market equilibrium|supply and demand|elasticity|financial accounting|business administration|organizational behavior)\b/i },
-  { name: 'Biology & Life Sciences', regex: /\b(cellular biology|genetics|dna|rna|protein synthesis|biochemistry|photosynthesis|evolution|ecology|microbiology)\b/i },
-  { name: 'Chemistry', regex: /\b(organic chemistry|inorganic chemistry|molecular structure|periodic table|stoichiometry|chemical bonding|kinetics|equilibrium|thermodynamics)\b/i },
+// Subject detection dictionary with specific patterns and prominent title matching
+const SUBJECT_PATTERNS: { name: string; regex: RegExp; titleRegex: RegExp }[] = [
+  {
+    name: 'Software Engineering',
+    regex: /\b(software engineering|software process|process models?|waterfall model|agile process|scrum|extreme programming|sdlc|requirements engineering|system models?|uml diagrams?|design engineering|software architecture|black-box testing|white-box testing|software quality|cmmi|rmmm|risk management|software reliability|iso 9000|software metrics)\b/i,
+    titleRegex: /\b(software engineering|software process|software design)\b/i
+  },
+  {
+    name: 'Data Structures & Algorithms',
+    regex: /\b(data structures?|linked lists?|binary trees?|binary search tree|avl tree|red-black tree|graph algorithms?|stack and queue|sorting algorithms?|asymptotic notation|big-o|hashing|recursion|dynamic programming|dijkstra|breadth-first search|depth-first search)\b/i,
+    titleRegex: /\b(data structures?|algorithms? and data structures?|design and analysis of algorithms?)\b/i
+  },
+  {
+    name: 'Operating Systems',
+    regex: /\b(operating systems?|process scheduling|deadlock|semaphore|virtual memory|paging|threading|system calls|file systems|concurrency|ipc)\b/i,
+    titleRegex: /\b(operating systems?)\b/i
+  },
+  {
+    name: 'Database Management Systems',
+    regex: /\b(database management|dbms|sql|relational model|normalization|er diagram|indexing|b-tree|acid properties|transactions|query processing)\b/i,
+    titleRegex: /\b(database|dbms|rdbms)\b/i
+  },
+  {
+    name: 'Computer Networks',
+    regex: /\b(computer networks?|tcp\/ip|osi model|packet switching|routing algorithms|ip addressing|dns|transport layer|network security|firewall)\b/i,
+    titleRegex: /\b(computer networks?|data communications?)\b/i
+  },
+  {
+    name: 'Machine Learning & AI',
+    regex: /\b(machine learning|deep learning|neural networks?|supervised learning|classification|regression|nlp|gradient descent|reinforcement learning|transformers)\b/i,
+    titleRegex: /\b(machine learning|artificial intelligence)\b/i
+  },
+  {
+    name: 'Mathematics & Calculus',
+    regex: /\b(calculus|linear algebra|eigenvalues?|matrix multiplication|differential equations?|probability and statistics|discrete mathematics|integration|limits|derivatives)\b/i,
+    titleRegex: /\b(mathematics|calculus|linear algebra)\b/i
+  },
+  {
+    name: 'Digital Logic & Architecture',
+    regex: /\b(computer architecture|digital logic|boolean algebra|karnaugh map|multiplexer|alu|pipeline|cache memory|microprocessor|instruction set|mips)\b/i,
+    titleRegex: /\b(computer architecture|digital logic|computer organization)\b/i
+  },
+  {
+    name: 'Physics & Electrical',
+    regex: /\b(thermodynamics|fluid mechanics|electromagnetism|quantum mechanics|circuits|kirchhoff|semiconductor|transistors|ohms law)\b/i,
+    titleRegex: /\b(physics|electrical engineering|circuit theory)\b/i
+  },
+  {
+    name: 'Economics & Management',
+    regex: /\b(microeconomics|macroeconomics|market equilibrium|supply and demand|elasticity|financial accounting|business administration|organizational behavior)\b/i,
+    titleRegex: /\b(economics|management|accounting)\b/i
+  },
+  {
+    name: 'Biology & Life Sciences',
+    regex: /\b(cellular biology|genetics|dna|rna|protein synthesis|biochemistry|photosynthesis|evolution|ecology|microbiology)\b/i,
+    titleRegex: /\b(biology|life sciences|genetics)\b/i
+  },
+  {
+    name: 'Chemistry',
+    regex: /\b(organic chemistry|inorganic chemistry|molecular structure|periodic table|stoichiometry|chemical bonding|chemical kinetics|chemical equilibrium)\b/i,
+    titleRegex: /\b(chemistry|chemical)\b/i
+  },
 ];
 
 /**
@@ -206,51 +254,40 @@ export async function classifyAcademicContent(
   // 2. POSITIVE ACADEMIC PATTERN MATCHERS
   // ==========================================
 
+  // ==========================================
+  // 2. POSITIVE ACADEMIC PATTERN MATCHERS
+  // ==========================================
+
   let academicScore = 0;
+  const firstPagesText = (content.pages.slice(0, 2).join('\n') || text.slice(0, 3000));
+  const lowerFirstPages = firstPagesText.toLowerCase();
+
+  // Detect Material Type with primary weight on cover page & content
   let detectedMaterialType: MaterialType = 'lecture_notes';
+  const isExplicitLectureNotes = /\b(lecture notes|lecture-notes|class notes)\b/i.test(lowerFirstPages) ||
+    /\b(lecture notes|lecture-notes|class notes)\b/i.test(lowerFilename);
 
-  // Syllabus patterns
-  const syllabusRegex = /\b(syllabus|course curriculum|course outline|course objectives|prerequisites|grading scheme|credit hours|semester \d|course code|lecture schedule|course structure|module \d|unit [1-9]|unit i|unit ii|unit iii|unit iv|unit v)\b/i;
-  if (syllabusRegex.test(cleanSample)) {
-    academicScore += 4;
-    detectedMaterialType = 'syllabus';
-  }
-
-  // Question Papers / Exam / Practice
-  const examRegex = /\b(question paper|previous year|end semester examination|mid semester|marks:\s*\d+|answer any \d|solve the following|q\.\s*\d+|section [a-c]|practice questions|question bank|sample paper|model exam)\b/i;
-  if (examRegex.test(cleanSample)) {
+  if (isExplicitLectureNotes) {
+    academicScore += 5;
+    detectedMaterialType = 'lecture_notes';
+  } else if (/\b(question paper|previous year|end semester examination|mid semester|marks:\s*\d+|answer any \d|solve the following|q\.\s*\d+|section [a-c]|question bank|sample paper|model exam)\b/i.test(cleanSample)) {
     academicScore += 4;
     detectedMaterialType = 'question_paper';
-  }
-
-  // Assignments
-  const assignmentRegex = /\b(assignment \d|homework \d|problem set|tutorial sheet|submission date|dead line|roll no:|student id:|due date:.*assignment)\b/i;
-  if (assignmentRegex.test(cleanSample)) {
+  } else if (/\b(assignment \d|homework \d|problem set|tutorial sheet|submission date|dead line|roll no:|student id:|due date:.*assignment)\b/i.test(cleanSample)) {
     academicScore += 3;
     detectedMaterialType = 'assignment';
-  }
-
-  // Lab Manuals
-  const labRegex = /\b(lab manual|experiment \d|laboratory manual|apparatus required|circuit diagram|procedure:|observations|tabulation|viva-voce|viva questions|precautions|aim of the experiment)\b/i;
-  if (labRegex.test(cleanSample)) {
+  } else if (/\b(lab manual|experiment \d|laboratory manual|apparatus required|circuit diagram|procedure:|observations|tabulation|viva-voce|viva questions|precautions|aim of the experiment)\b/i.test(cleanSample)) {
     academicScore += 4;
     detectedMaterialType = 'lab_manual';
-  }
-
-  // Revision / Formula
-  const revisionRegex = /\b(revision notes|summary sheet|formula sheet|cheat sheet|key points to remember|recap of unit|quick review)\b/i;
-  if (revisionRegex.test(cleanSample)) {
+  } else if (/\b(revision notes|summary sheet|formula sheet|cheat sheet|key points to remember|recap of unit|quick review)\b/i.test(cleanSample)) {
     academicScore += 3;
     detectedMaterialType = 'revision_material';
-  }
-
-  // Textbooks / Academic papers
-  const textbookRegex = /\b(table of contents|chapter \d+|section \d+\.\d+|isbn|preface|bibliography|references\s*\[\d+\]|index\s*\d+|theorem \d+|definition \d+|abstract\b.*introduction\b)/i;
-  if (textbookRegex.test(cleanSample)) {
+  } else if (/\b(table of contents|chapter \d+|section \d+\.\d+|isbn|preface|bibliography|references\s*\[\d+\]|index\s*\d+|theorem \d+|definition \d+|abstract\b.*introduction\b)/i.test(cleanSample)) {
     academicScore += 4;
-    if (detectedMaterialType === 'lecture_notes') {
-      detectedMaterialType = 'textbook';
-    }
+    detectedMaterialType = 'textbook';
+  } else if (/\b(syllabus|course curriculum|course outline|course objectives|prerequisites|grading scheme|credit hours|semester \d|course code|lecture schedule|course structure)\b/i.test(cleanSample)) {
+    academicScore += 4;
+    detectedMaterialType = 'syllabus';
   }
 
   // Core Educational & Conceptual signals
@@ -260,15 +297,49 @@ export async function classifyAcademicContent(
     academicScore += Math.min(5, conceptMatches.length);
   }
 
-  // Detect Subject Domain
-  let detectedSubject: string | undefined;
-  for (const sub of SUBJECT_PATTERNS) {
-    if (sub.regex.test(cleanSample)) {
-      academicScore += 3;
-      if (!detectedSubject) {
-        detectedSubject = sub.name;
-      }
+  // ==========================================
+  // ACCURATE SUBJECT IDENTIFICATION ENGINE
+  // Priority: Cover Page / Title > High-Frequency Keywords > Filename
+  // ==========================================
+  interface SubjectScore {
+    name: string;
+    score: number;
+  }
+
+  const subjectScores: SubjectScore[] = SUBJECT_PATTERNS.map((sub) => {
+    let score = 0;
+
+    // 1. Cover page title match (+45 points)
+    if (sub.titleRegex.test(lowerFirstPages)) {
+      score += 45;
     }
+
+    // 2. Filename supporting match (+25 points)
+    if (sub.titleRegex.test(lowerFilename)) {
+      score += 25;
+    }
+
+    // 3. First page occurrences (+15 points each)
+    const firstPageMatches = lowerFirstPages.match(new RegExp(sub.regex.source, 'gi'));
+    if (firstPageMatches) {
+      score += firstPageMatches.length * 15;
+    }
+
+    // 4. Sample text occurrences (+3 points each)
+    const sampleMatches = cleanSample.match(new RegExp(sub.regex.source, 'gi'));
+    if (sampleMatches) {
+      score += sampleMatches.length * 3;
+    }
+
+    return { name: sub.name, score };
+  });
+
+  subjectScores.sort((a, b) => b.score - a.score);
+  const bestSubject = subjectScores[0];
+  const detectedSubject = bestSubject && bestSubject.score >= 5 ? bestSubject.name : undefined;
+
+  if (detectedSubject) {
+    academicScore += 4;
   }
 
   // Filename signals (secondary/weak signal)
@@ -278,9 +349,7 @@ export async function classifyAcademicContent(
 
   // Academic Presentation check
   if (filename.endsWith('.pptx')) {
-    if (detectedMaterialType === 'lecture_notes') {
-      detectedMaterialType = 'academic_presentation';
-    }
+    detectedMaterialType = 'academic_presentation';
   }
 
   // ==========================================
@@ -290,7 +359,7 @@ export async function classifyAcademicContent(
   // If score is high -> Approved academic
   if (academicScore >= 3) {
     const confidence = Math.min(0.99, 0.82 + (academicScore * 0.03));
-    const subLabel = detectedSubject || 'Academic Study';
+    const subLabel = detectedSubject || extractTitleSubject(firstPagesText) || 'Academic Study';
     const matLabel = detectedMaterialType.replace('_', ' ');
 
     return {
@@ -299,7 +368,7 @@ export async function classifyAcademicContent(
       confidence: Number(confidence.toFixed(2)),
       materialType: detectedMaterialType,
       subject: subLabel,
-      topic: extractProbableTopic(cleanSample),
+      topic: extractProbableTopic(firstPagesText || cleanSample),
       reason: `Verified ${matLabel} containing educational principles in ${subLabel}.`,
       extractedSnippet: sampleText.slice(0, 300),
     };
@@ -307,15 +376,14 @@ export async function classifyAcademicContent(
 
   // Moderate score with some educational words -> If it seems academic
   if (academicScore >= 1) {
-    // Check if substantial structured text with educational paragraphs
     if (wordCount > 100) {
       return {
         isAcademic: true,
         classification: 'academic',
         confidence: 0.85,
         materialType: detectedMaterialType,
-        subject: detectedSubject || 'Course Materials',
-        topic: extractProbableTopic(cleanSample),
+        subject: detectedSubject || extractTitleSubject(firstPagesText) || 'Course Materials',
+        topic: extractProbableTopic(firstPagesText || cleanSample),
         reason: `Contains academic study text covering theoretical and conceptual topics.`,
         extractedSnippet: sampleText.slice(0, 300),
       };
@@ -333,12 +401,28 @@ export async function classifyAcademicContent(
 }
 
 /**
+ * Extracts a prominent subject title directly from the cover/first pages
+ */
+function extractTitleSubject(text: string): string | undefined {
+  const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 3 && l.length < 50);
+  for (const line of lines.slice(0, 8)) {
+    // Check if line looks like an academic subject title
+    if (!/^(page|unit|chapter|department|b\.tech|r\d+|lecture notes|index|contents|\d+)/i.test(line)) {
+      if (/^[A-Z\s]{4,}$/.test(line)) {
+        return line.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
  * Extracts a likely main topic title from the first lines of text
  */
 function extractProbableTopic(sample: string): string {
-  const lines = sample.split('\n').map(l => l.trim()).filter(Boolean);
-  for (const line of lines.slice(0, 5)) {
-    if (line.length > 5 && line.length < 60 && !/^(page|slide|\d+|contents)/i.test(line)) {
+  const lines = sample.split('\n').map((l) => l.trim()).filter(Boolean);
+  for (const line of lines.slice(0, 8)) {
+    if (line.length > 4 && line.length < 60 && !/^(page|slide|\d+|contents|department|b\.tech|lecture notes)/i.test(line)) {
       return line.charAt(0).toUpperCase() + line.slice(1);
     }
   }

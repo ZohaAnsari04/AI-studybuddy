@@ -4,62 +4,45 @@ import {
   MessageSquare,
   FileQuestion,
   Calendar,
-  UploadCloud,
-  Play
+  UploadCloud
 } from 'lucide-react';
-import { UserProfile, Course } from '../../types';
+import { UserProfile, Course, QuizAttempt } from '../../types';
+import { StorageService } from '../../lib/storage/db';
 import { GlassCard } from '../common/GlassCard';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 
 interface DashboardViewProps {
-  user: UserProfile;
+  user: UserProfile | null;
   courses: Course[];
-  isDemoMode: boolean;
   onNavigate: (tab: string, topicId?: string) => void;
-  onLaunchDemo?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   user,
   courses,
-  isDemoMode,
-  onNavigate,
-  onLaunchDemo
+  onNavigate
 }) => {
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';
   const hasCourses = courses.length > 0;
   const activeCourse = hasCourses ? courses[0] : null;
 
+  const displayName = user ? user.name.split(' ')[0] : 'Student';
+
   return (
     <div className="space-y-8 animate-fadeIn max-w-5xl mx-auto">
-      {/* DEMO MODE PROMINENT HEADER BANNER */}
-      {isDemoMode && (
-        <div className="p-3.5 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-between text-amber-300">
-          <div className="flex items-center gap-2">
-            <span className="font-extrabold uppercase text-xs tracking-wider px-2 py-0.5 rounded bg-amber-500/30 text-white">
-              DEMO WORKSPACE ACTIVE
-            </span>
-            <span className="text-xs text-amber-200 hidden sm:inline">
-              Pre-loaded sample dataset for hackathon evaluation.
-            </span>
-          </div>
-          <span className="text-xs font-bold text-amber-400">Sample Data</span>
-        </div>
-      )}
-
       {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight">
             {hasCourses ? `${greeting}, ` : 'Welcome to StudySphere AI, '}
-            <span className="gradient-text">{user.name.split(' ')[0]}</span> 👋
+            <span className="gradient-text">{displayName}</span> 👋
           </h1>
           <p className="text-sm text-slate-400 mt-1">
             {hasCourses
               ? 'Your personalized AI study companion.'
-              : 'Upload your syllabus or notes to get started.'}
+              : 'Upload your syllabus or notes to start learning.'}
           </p>
         </div>
 
@@ -72,16 +55,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             Upload Study Material
           </Button>
-          {!isDemoMode && (
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<Play className="w-3.5 h-3.5 fill-current text-cyan-400" />}
-              onClick={onLaunchDemo}
-            >
-              Try Demo
-            </Button>
-          )}
         </div>
       </div>
 
@@ -106,6 +79,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               Extracted Material: {activeCourse.description}
             </p>
           </div>
+
+          {/* REAL PROGRESS METRICS GRID */}
+          {(() => {
+            const attempts = StorageService.getQuizAttempts(user?.id);
+            const avgScore = attempts.length > 0
+              ? Math.round(attempts.reduce((sum: number, a: QuizAttempt) => sum + a.scorePercent, 0) / attempts.length)
+              : 0;
+            const weakCount = Array.from(new Set(attempts.flatMap((a: QuizAttempt) => a.weakTopicsDetected || []))).length;
+
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
+                  <span className="text-[11px] text-slate-400 block uppercase tracking-wider">Topics Detected</span>
+                  <span className="text-xl font-extrabold text-white mt-0.5 block">{activeCourse.totalTopics} Topics</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
+                  <span className="text-[11px] text-slate-400 block uppercase tracking-wider">Quizzes Taken</span>
+                  <span className="text-xl font-extrabold text-cyan-400 mt-0.5 block">{attempts.length} Attempt{attempts.length === 1 ? '' : 's'}</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
+                  <span className="text-[11px] text-slate-400 block uppercase tracking-wider">Average Score</span>
+                  <span className="text-xl font-extrabold text-emerald-400 mt-0.5 block">{attempts.length > 0 ? `${avgScore}%` : 'Not tested'}</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
+                  <span className="text-[11px] text-slate-400 block uppercase tracking-wider">Weak Areas</span>
+                  <span className={`text-xl font-extrabold mt-0.5 block ${weakCount > 0 ? 'text-rose-400' : 'text-slate-400'}`}>
+                    {weakCount > 0 ? `${weakCount} Topics` : 'None'}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* 4 CORE QUICK ACTION BUTTONS */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
@@ -151,7 +156,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <h3 className="text-2xl font-extrabold text-white mb-2">Your study space is empty</h3>
           <p className="text-sm text-slate-300 max-w-md mx-auto mb-6">
-            Upload your syllabus, lecture notes, or textbooks to get started with AI explanations, doubt solving, practice quizzes, and revision planning.
+            You haven't uploaded any study material yet. Upload your first syllabus, lecture notes, or textbooks to start learning.
           </p>
 
           <Button
@@ -174,13 +179,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span className="text-cyan-400 font-bold">✓</span> Textbooks
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-cyan-400 font-bold">✓</span> Study Guides
+              <span className="text-cyan-400 font-bold">✓</span> Question Papers
             </div>
           </div>
         </GlassCard>
       )}
 
-      {/* QUICK ACTIONS GRID FOR EMPTY OR ACTIVE STATE */}
+      {/* QUICK ACTIONS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <GlassCard onClick={() => onNavigate('chat')} className="border-blue-500/30 flex flex-col justify-between cursor-pointer">
           <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 w-fit mb-3">
@@ -188,7 +193,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div>
             <h4 className="text-sm font-bold text-white mb-1">Ask AI</h4>
-            <p className="text-xs text-slate-400">Doubt solver grounded in your notes with page citations.</p>
+            <p className="text-xs text-slate-400">Doubt solver strictly grounded in your notes with page citations.</p>
           </div>
           <span className="text-xs font-semibold text-blue-400 mt-4 flex items-center gap-1">
             Open Chat →
@@ -214,7 +219,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div>
             <h4 className="text-sm font-bold text-white mb-1">Generate Quiz</h4>
-            <p className="text-xs text-slate-400">Create multiple-choice practice tests from your material.</p>
+            <p className="text-xs text-slate-400">Create multiple-choice practice tests from your material on demand.</p>
           </div>
           <span className="text-xs font-semibold text-amber-400 mt-4 flex items-center gap-1">
             Create Quiz →
@@ -227,7 +232,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div>
             <h4 className="text-sm font-bold text-white mb-1">Revision Plan</h4>
-            <p className="text-xs text-slate-400">Build a daily exam schedule tailored to your study hours.</p>
+            <p className="text-xs text-slate-400">Build an adaptive timetable prioritizing weak quiz topics.</p>
           </div>
           <span className="text-xs font-semibold text-emerald-400 mt-4 flex items-center gap-1">
             Build Schedule →
@@ -237,3 +242,5 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     </div>
   );
 };
+
+export default DashboardView;

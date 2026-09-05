@@ -1,18 +1,13 @@
 import React, { useState } from 'react';
 import {
-  FolderOpen,
   BookOpen,
   Sparkles,
-  ChevronDown,
   ChevronUp,
-  FileQuestion,
-  Layers,
   UploadCloud
 } from 'lucide-react';
 import { Course } from '../../types';
 import { GlassCard } from '../common/GlassCard';
 import { Button } from '../common/Button';
-import { Badge } from '../common/Badge';
 
 interface CourseExplorerProps {
   courses: Course[];
@@ -25,8 +20,12 @@ export const CourseExplorer: React.FC<CourseExplorerProps> = ({
   onSelectTopic,
   onNavigate
 }) => {
-  const [activeCourseId, setActiveCourseId] = useState<string>(courses[0]?.id || '');
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [expandedUnitId, setExpandedUnitId] = useState<string>('');
+
+  const activeCourseId = selectedCourseId && courses.some((c) => c.id === selectedCourseId)
+    ? selectedCourseId
+    : (courses[0]?.id || '');
 
   const currentCourse = courses.find((c) => c.id === activeCourseId) || courses[0];
 
@@ -69,6 +68,24 @@ export const CourseExplorer: React.FC<CourseExplorerProps> = ({
 
   return (
     <div className="space-y-8 animate-fadeIn max-w-5xl mx-auto">
+      {/* Course selector if multiple courses exist */}
+      {courses.length > 1 && (
+        <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/80 border border-slate-800">
+          <span className="text-xs font-bold text-slate-400">Select Active Course:</span>
+          <select
+            value={currentCourse.id}
+            onChange={(e) => setSelectedCourseId(e.target.value)}
+            className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-semibold focus:outline-none focus:border-cyan-400 cursor-pointer"
+          >
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title} ({c.units.length} Units)
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Header banner */}
       <GlassCard glowOnHover={false} className="border-cyan-500/30 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/40">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -77,7 +94,7 @@ export const CourseExplorer: React.FC<CourseExplorerProps> = ({
               <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
                 {currentCourse.code}
               </span>
-              <span className="text-xs text-slate-400">• {currentCourse.documentsCount} Documents Parsed</span>
+              <span className="text-xs text-slate-400">• {currentCourse.documentsCount} Document(s) Parsed</span>
             </div>
             <h1 className="text-3xl font-extrabold text-white">{currentCourse.title}</h1>
             <p className="text-sm text-slate-300 mt-2 max-w-2xl">
@@ -86,14 +103,6 @@ export const CourseExplorer: React.FC<CourseExplorerProps> = ({
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<Layers className="w-4 h-4 text-cyan-400" />}
-              onClick={() => onNavigate('knowledge')}
-            >
-              Knowledge Map
-            </Button>
             <Button
               variant="primary"
               size="sm"
@@ -159,28 +168,33 @@ export const CourseExplorer: React.FC<CourseExplorerProps> = ({
                   {isExpanded ? (
                     <ChevronUp className="w-5 h-5 text-cyan-400" />
                   ) : (
-                    <ChevronDown className="w-5 h-5 text-slate-400" />
+                    <div className="w-5 h-5 text-slate-500 text-center font-bold">↓</div>
                   )}
                 </div>
               </div>
 
-              {/* Topics list inside unit */}
+              {/* Topics list */}
               {isExpanded && (
-                <div className="p-5 pt-0 border-t border-slate-800/80 bg-slate-950/40 space-y-3">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 pt-3">
-                    Extracted Topics & AI Actions
-                  </p>
+                <div className="border-t border-slate-800/80 bg-slate-950/50 divide-y divide-slate-900">
                   {unit.topics.map((topic) => (
                     <div
                       key={topic.id}
-                      className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-cyan-500/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      className="p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-900/40 transition-colors"
                     >
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="text-sm font-bold text-white">{topic.title}</h4>
-                          <Badge variant={topic.status}>{topic.status.replace('_', ' ')}</Badge>
+                      <div className="space-y-1 max-w-xl">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-white">{topic.title}</span>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded capitalize ${
+                            topic.difficulty === 'easy'
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                              : topic.difficulty === 'hard'
+                              ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                              : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                          }`}>
+                            {topic.difficulty}
+                          </span>
                         </div>
-                        <p className="text-xs text-slate-400">{topic.description}</p>
+                        <p className="text-xs text-slate-400 line-clamp-2">{topic.description}</p>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -198,8 +212,10 @@ export const CourseExplorer: React.FC<CourseExplorerProps> = ({
                         <Button
                           variant="outline"
                           size="sm"
-                          icon={<FileQuestion className="w-3.5 h-3.5 text-amber-400" />}
-                          onClick={() => onNavigate('quizzes', topic.id)}
+                          onClick={() => {
+                            onSelectTopic(topic.id);
+                            onNavigate('quizzes', topic.id);
+                          }}
                         >
                           Quiz
                         </Button>
@@ -215,3 +231,5 @@ export const CourseExplorer: React.FC<CourseExplorerProps> = ({
     </div>
   );
 };
+
+export default CourseExplorer;

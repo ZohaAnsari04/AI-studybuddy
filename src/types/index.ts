@@ -90,6 +90,16 @@ export interface AcademicValidationResult {
   extractedSnippet?: string;
 }
 
+export interface DocumentOverview {
+  summary: string;
+  keyTakeaways: string[];
+  importantTopics: string[];
+  pagesCount: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  definitions?: Array<{ term: string; definition: string }>;
+  formulas?: string[];
+}
+
 export interface StudyDocument {
   id: string;
   name: string;
@@ -108,6 +118,21 @@ export interface StudyDocument {
   academicReason?: string;
   contentHash?: string;
   verificationStatus?: 'approved' | 'rejected' | 'pending';
+  overview?: DocumentOverview;
+}
+
+export interface Course {
+  id: string;
+  title: string;
+  code: string;
+  description: string;
+  uploadedAt: string;
+  documentsCount: number;
+  totalTopics: number;
+  masteredTopics: number;
+  progressPercent: number;
+  units: Unit[];
+  overview?: DocumentOverview;
 }
 
 export interface ChatCitation {
@@ -137,6 +162,24 @@ export interface QuizQuestion {
   isCorrect?: boolean;
   topicId: string;
   topicTitle: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  sourceReference?: string;
+}
+
+export interface QuizConfig {
+  questionCount: number;
+  difficulty: 'easy' | 'medium' | 'hard' | 'mixed';
+  questionType: 'multiple_choice' | 'short_answer' | 'mixed';
+  topicScope: string; // 'entire_material' or topicId
+}
+
+export interface TopicPerformance {
+  topicId: string;
+  topicTitle: string;
+  totalQuestions: number;
+  correctCount: number;
+  scorePercent: number;
+  status: 'strong' | 'needs_practice' | 'weak';
 }
 
 export interface QuizAttempt {
@@ -152,6 +195,7 @@ export interface QuizAttempt {
   questions: QuizQuestion[];
   weakTopicsDetected: string[];
   strongTopicsDetected: string[];
+  topicPerformances?: TopicPerformance[];
 }
 
 export interface RevisionTask {

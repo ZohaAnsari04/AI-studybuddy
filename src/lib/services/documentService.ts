@@ -187,6 +187,29 @@ export class DocumentService {
 
             if (courseRow) {
               course.id = courseRow.id;
+              const topicRows = course.units.flatMap((u) =>
+                u.topics.map((t) => ({
+                  course_id: courseRow.id,
+                  user_id: userId,
+                  unit_number: u.unitNumber,
+                  unit_title: u.title,
+                  title: t.title,
+                  description: t.description,
+                  status: t.status,
+                  difficulty: t.difficulty,
+                  confidence_score: t.confidenceScore,
+                  technical_explanation: t.technicalExplanation,
+                  eli10_explanation: t.eli10Explanation,
+                  analogy: t.analogy,
+                  example: t.example,
+                  key_points: t.keyPoints,
+                  common_mistakes: t.commonMistakes,
+                  quick_check: t.quickCheck
+                }))
+              );
+              if (topicRows.length > 0) {
+                await supabase.from('course_topics').insert(topicRows);
+              }
             }
           }
         }

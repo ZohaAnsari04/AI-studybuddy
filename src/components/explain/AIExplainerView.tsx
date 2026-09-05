@@ -11,7 +11,7 @@ import {
   Play,
   UploadCloud
 } from 'lucide-react';
-import { Course, Topic } from '../../types';
+import { Course } from '../../types';
 import { getAIProvider, ExplanationResult } from '../../lib/ai/provider';
 import { GlassCard } from '../common/GlassCard';
 import { Button } from '../common/Button';
@@ -31,11 +31,16 @@ export const AIExplainerView: React.FC<AIExplainerViewProps> = ({
   const allTopics = courses.flatMap((c) => c.units.flatMap((u) => u.topics));
   const defaultTopic = allTopics.find((t) => t.id === selectedTopicId) || allTopics[0];
 
-  const [activeTopicId, setActiveTopicId] = useState(defaultTopic?.id || '');
+  const [selectedTopicOverride, setSelectedTopicOverride] = useState<string | null>(null);
   const [level, setLevel] = useState<'Quick' | 'Beginner' | 'Intermediate' | 'Advanced' | 'ELI10'>('ELI10');
   const [isEli10Toggle, setIsEli10Toggle] = useState(true);
   const [explanation, setExplanation] = useState<ExplanationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Derive active topic cleanly during render without cascading effect renders
+  const activeTopicId = selectedTopicOverride && allTopics.some((t) => t.id === selectedTopicOverride)
+    ? selectedTopicOverride
+    : (selectedTopicId && allTopics.some((t) => t.id === selectedTopicId) ? selectedTopicId : allTopics[0]?.id);
 
   // Quick check state
   const [userChoice, setUserChoice] = useState<number | null>(null);
@@ -43,15 +48,21 @@ export const AIExplainerView: React.FC<AIExplainerViewProps> = ({
 
   const topicToExplain = allTopics.find((t) => t.id === activeTopicId) || defaultTopic;
 
-  const fetchExplanation = async () => {
+  const currentLevel = isEli10Toggle ? 'ELI10' : level;
+
+  const handleFetchExplanation = async () => {
     if (!topicToExplain) return;
     setIsLoading(true);
     setUserChoice(null);
     setShowAnswer(false);
     try {
       const provider = getAIProvider();
-      const currentLevel = isEli10Toggle ? 'ELI10' : level;
-      const res = await provider.explainConcept(topicToExplain.title, currentLevel);
+      const res = await provider.explainConcept(
+        topicToExplain.title,
+        currentLevel,
+        topicToExplain.technicalExplanation,
+        topicToExplain
+      );
       setExplanation(res);
     } catch (err) {
       console.error(err);
@@ -61,10 +72,43 @@ export const AIExplainerView: React.FC<AIExplainerViewProps> = ({
   };
 
   useEffect(() => {
-    if (topicToExplain) {
-      fetchExplanation();
-    }
-  }, [activeTopicId, level, isEli10Toggle]);
+    let isCurrent = true;
+    if (!topicToExplain) return;
+
+    const topicTitle = topicToExplain.title;
+    const topicTech = topicToExplain.technicalExplanation;
+    const currentTopic = topicToExplain;
+
+    const timer = setTimeout(() => {
+      if (!isCurrent) return;
+      setIsLoading(true);
+      setUserChoice(null);
+      setShowAnswer(false);
+
+      const provider = getAIProvider();
+      provider.explainConcept(
+        topicTitle,
+        currentLevel,
+        topicTech,
+        currentTopic
+      ).then((res) => {
+        if (isCurrent) {
+          setExplanation(res);
+          setIsLoading(false);
+        }
+      }).catch((err) => {
+        if (isCurrent) {
+          console.error(err);
+          setIsLoading(false);
+        }
+      });
+    }, 0);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [topicToExplain, currentLevel]);
 
   if (!defaultTopic || allTopics.length === 0) {
     return (
@@ -117,7 +161,7 @@ export const AIExplainerView: React.FC<AIExplainerViewProps> = ({
         {/* Topic selector */}
         <select
           value={activeTopicId || defaultTopic.id}
-          onChange={(e) => setActiveTopicId(e.target.value)}
+          onChange={(e) => setSelectedTopicOverride(e.target.value)}
           className="px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-semibold focus:outline-none focus:border-cyan-400 cursor-pointer max-w-xs truncate"
         >
           {allTopics.map((t) => (
@@ -139,7 +183,7 @@ export const AIExplainerView: React.FC<AIExplainerViewProps> = ({
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 "Explain Like I'm 10" Mode
                 <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
-                  SIGNATURE DEMO
+                  Intuitive Simplification
                 </span>
               </h3>
               <p className="text-xs text-slate-300">
@@ -204,10 +248,20 @@ export const AIExplainerView: React.FC<AIExplainerViewProps> = ({
               <Badge variant="cyan">{topicToExplain.unitTitle}</Badge>
             </div>
 
-            <h2 className="text-2xl font-extrabold text-white mb-4">{topicToExplain.title}</h2>
-            <p className="text-base text-slate-200 leading-relaxed font-normal mb-6">
+            <h2 className="text-2xl font-extrabold text-white mb-3">{topicToExplain.title}</h2>
+            <p className="text-base text-slate-200 leading-relaxed font-normal mb-5">
               {explanation.summary}
             </p>
+
+            {/* Why It Matters */}
+            {explanation.whyItMatters && (
+              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 mb-4 text-xs text-slate-300">
+                <span className="font-extrabold text-cyan-400 block mb-1 uppercase tracking-wider text-[11px]">
+                  Why It Matters in {topicToExplain.unitTitle || 'this course'}:
+                </span>
+                {explanation.whyItMatters}
+              </div>
+            )}
 
             {/* Analogy Box */}
             <div className="p-4 rounded-xl bg-cyan-950/40 border border-cyan-500/30">
@@ -219,6 +273,12 @@ export const AIExplainerView: React.FC<AIExplainerViewProps> = ({
                 "{explanation.analogy}"
               </p>
             </div>
+
+            {explanation.sourceReference && (
+              <div className="mt-3 text-[11px] text-slate-400 italic text-right">
+                {explanation.sourceReference}
+              </div>
+            )}
           </GlassCard>
 
           {/* Example & Key Takeaways Grid */}
@@ -322,7 +382,7 @@ export const AIExplainerView: React.FC<AIExplainerViewProps> = ({
               variant="secondary"
               size="md"
               icon={<RotateCcw className="w-4 h-4 text-cyan-400" />}
-              onClick={fetchExplanation}
+              onClick={handleFetchExplanation}
             >
               Regenerate Explanation
             </Button>

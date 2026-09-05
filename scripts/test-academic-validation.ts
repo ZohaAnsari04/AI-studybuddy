@@ -300,6 +300,148 @@ async function runAllTests() {
   const disguisedInvoiceResult = await classifyAcademicContent('Algorithms_Syllabus.docx', mockExtractedContent(invoiceText));
   assert(!disguisedInvoiceResult.isAcademic, 'Reject Invoice disguised with academic filename "Algorithms_Syllabus.docx"');
 
+  // -----------------------------------------------------------
+  // TEST GROUP 5: STRICT SOURCE-GROUNDED AI & ANTI-HALLUCINATION
+  // -----------------------------------------------------------
+  console.log('\n--- TEST GROUP 5: Grounded AI & Anti-Hallucination ---');
+  const { DemoAIProvider } = await import('../src/lib/ai/aiService');
+  const { QuizService } = await import('../src/lib/services/quizService');
+
+  const aiProvider = new DemoAIProvider();
+
+  const mockApprovedDocs: any[] = [
+    {
+      id: 'doc-os-1',
+      name: 'Operating_Systems_Lecture.pdf',
+      verificationStatus: 'approved',
+      status: 'ready',
+      overview: {
+        importantTopics: ['Process Management', 'CPU Scheduling', 'Deadlocks']
+      },
+      chunks: [
+        {
+          id: 'c1',
+          documentId: 'doc-os-1',
+          documentName: 'Operating_Systems_Lecture.pdf',
+          unitTitle: 'Unit 2: Process Management',
+          pageNumber: 5,
+          text: 'Process scheduling is the method used by the operating system to decide which process should use the CPU. It balances throughput and minimizes waiting time.'
+        }
+      ]
+    }
+  ];
+
+  // 5.1: Question present in uploaded notes -> Cites source and page
+  const groundedAnswer = await aiProvider.answerGroundedQuestion('What is process scheduling?', mockApprovedDocs);
+  assert(
+    !groundedAnswer.isFallback &&
+    groundedAnswer.text.includes('Operating_Systems_Lecture.pdf') &&
+    groundedAnswer.text.includes('Page 5') &&
+    Boolean(groundedAnswer.citations && groundedAnswer.citations.length > 0),
+    'Grounded question answered with exact source & page citation'
+  );
+
+  // 5.2: Unrelated request (e.g. Write a resume) -> Refuses politely
+  const resumeRequestAnswer = await aiProvider.answerGroundedQuestion('Write me a job resume for software engineer', mockApprovedDocs);
+  assert(
+    groundedAnswer !== null &&
+    resumeRequestAnswer.isUnrelated === true &&
+    resumeRequestAnswer.text.includes("That isn't related to the study material"),
+    'Refuses unrelated request (job resume) without using general knowledge'
+  );
+
+  // 5.3: Question absent from uploaded notes -> Refuses with suggested topics
+  const missingConceptAnswer = await aiProvider.answerGroundedQuestion('What is quantum entanglement in cryptography?', mockApprovedDocs);
+  assert(
+    missingConceptAnswer.isFallback === true &&
+    missingConceptAnswer.text.includes("I couldn't find this information in your uploaded study material") &&
+    missingConceptAnswer.text.includes('Process Management'),
+    'Refuses absent concept with suggested study topics from notes'
+  );
+
+  // -----------------------------------------------------------
+  // TEST GROUP 6: QUIZ GENERATION & WEAK TOPIC DETECTION
+  // -----------------------------------------------------------
+  console.log('\n--- TEST GROUP 6: Quiz Generation & Weak Topic Detection ---');
+
+  // 6.1: Quiz generation on demand respecting question count
+  const generatedQuiz = await aiProvider.generateQuiz(
+    { questionCount: 5, difficulty: 'mixed', questionType: 'multiple_choice', topicScope: 'entire_material' },
+    'mixed',
+    5,
+    mockApprovedDocs,
+    [{ id: 'top-1', title: 'Process Scheduling', unitTitle: 'Unit 2', description: 'Scheduling algorithms' } as any]
+  );
+  assert(generatedQuiz.length === 5, 'Generates requested question count (5 questions)');
+  assert(
+    generatedQuiz[0].options?.length === 4 && generatedQuiz[0].sourceReference !== undefined,
+    'Every question has 4 options and valid source reference'
+  );
+
+  // 6.2: Topic-level evaluation & weak/strong threshold calculation
+  const mockQuizQuestions: any[] = [
+    { id: 'q1', topicId: 't-cpu', topicTitle: 'CPU Scheduling', correctAnswer: 0 },
+    { id: 'q2', topicId: 't-cpu', topicTitle: 'CPU Scheduling', correctAnswer: 0 },
+    { id: 'q3', topicId: 't-cpu', topicTitle: 'CPU Scheduling', correctAnswer: 0 },
+    { id: 'q4', topicId: 't-cpu', topicTitle: 'CPU Scheduling', correctAnswer: 0 },
+    { id: 'q5', topicId: 't-mem', topicTitle: 'Memory Management', correctAnswer: 0 },
+    { id: 'q6', topicId: 't-mem', topicTitle: 'Memory Management', correctAnswer: 0 },
+  ];
+  // Student answers: CPU Scheduling gets 1/4 (25% -> weak), Memory gets 2/2 (100% -> strong)
+  const studentAnswers: Record<number, any> = {
+    0: 0, // correct
+    1: 2, // wrong
+    2: 1, // wrong
+    3: 3, // wrong
+    4: 0, // correct
+    5: 0, // correct
+  };
+
+  const evalAttempt = QuizService.evaluateQuizAttempt(
+    'OS Practice Quiz',
+    'Operating Systems',
+    't-all',
+    'All Topics',
+    mockQuizQuestions,
+    studentAnswers
+  );
+
+  assert(evalAttempt.scorePercent === 50, 'Calculates correct overall score percentage (50%)');
+  assert(
+    evalAttempt.weakTopicsDetected.includes('CPU Scheduling'),
+    'Correctly classifies CPU Scheduling as Weak Topic (< 60%)'
+  );
+  assert(
+    evalAttempt.strongTopicsDetected.includes('Memory Management'),
+    'Correctly classifies Memory Management as Strong Topic (>= 80%)'
+  );
+
+  // -----------------------------------------------------------
+  // TEST GROUP 7: ADAPTIVE REVISION SCHEDULER
+  // -----------------------------------------------------------
+  console.log('\n--- TEST GROUP 7: Adaptive Revision Scheduling ---');
+
+  const revisionTasks = await aiProvider.generateRevisionPlan(
+    '2026-10-15',
+    2,
+    ['CPU Scheduling'], // weak topic
+    ['Memory Management'], // strong topic
+    ['Process Management', 'File Systems']
+  );
+
+  assert(revisionTasks.length > 0, 'Generates adaptive revision schedule tasks');
+  const weakTask = revisionTasks.find((t) => t.topicTitle === 'CPU Scheduling');
+  const strongTask = revisionTasks.find((t) => t.topicTitle === 'Memory Management');
+
+  assert(
+    Boolean(weakTask && weakTask.priority === 'high' && weakTask.durationMinutes >= 45),
+    'Weak topic receives HIGH priority and longer duration (>=45 min)'
+  );
+  assert(
+    Boolean(strongTask && strongTask.priority === 'low' && strongTask.durationMinutes <= 30),
+    'Strong topic receives maintenance duration (<=30 min)'
+  );
+
   console.log('\n====================================================');
   console.log(`🏁 TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);
   console.log('====================================================\n');

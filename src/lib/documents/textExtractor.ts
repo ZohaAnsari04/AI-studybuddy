@@ -41,12 +41,49 @@ async function extractTextFromPdf(file: File): Promise<{ text: string; pages: st
   for (let i = 1; i <= numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    const pageText = content.items
-      .map((item) => ('str' in item ? (item as { str: string }).str : ''))
-      .join(' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    // Preserve vertical layout by detecting Y coordinate shifts and EOL markers
+    const pageLines: string[] = [];
+    let currentLine = '';
+    let lastY: number | null = null;
 
+    for (const item of content.items) {
+      if (!('str' in item)) continue;
+      const textItem = item as { str: string; transform?: number[]; hasEOL?: boolean };
+      const str = textItem.str;
+      if (!str && !textItem.hasEOL) continue;
+
+      const currentY = textItem.transform && textItem.transform.length >= 6 ? textItem.transform[5] : null;
+
+      // When vertical Y position changes significantly (> 3 points) or hasEOL is true, flush line
+      if (lastY !== null && currentY !== null && Math.abs(currentY - lastY) > 3) {
+        if (currentLine.trim()) {
+          pageLines.push(currentLine.trim());
+        }
+        currentLine = str;
+      } else if (textItem.hasEOL) {
+        currentLine += (currentLine && !currentLine.endsWith(' ') && !str.startsWith(' ') ? ' ' : '') + str;
+        if (currentLine.trim()) {
+          pageLines.push(currentLine.trim());
+        }
+        currentLine = '';
+      } else {
+        if (currentLine && !currentLine.endsWith(' ') && !str.startsWith(' ')) {
+          currentLine += ' ' + str;
+        } else {
+          currentLine += str;
+        }
+      }
+
+      if (currentY !== null) {
+        lastY = currentY;
+      }
+    }
+
+    if (currentLine.trim()) {
+      pageLines.push(currentLine.trim());
+    }
+
+    const pageText = pageLines.join('\n');
     pages.push(pageText);
     totalChars += pageText.length;
   }

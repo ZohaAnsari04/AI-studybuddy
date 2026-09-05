@@ -437,32 +437,37 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
         </GlassCard>
       )}
 
-      {/* SUCCESS RESULT SUMMARY CARD */}
+      {/* UPLOADED MATERIAL SUMMARY / CENTRAL LEARNING PAGE */}
       {latestResult && !isProcessing && (
-        <GlassCard className="border-emerald-500/40 bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/30 p-8 space-y-6">
-          <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 mt-0.5">
-                <CheckCircle2 className="w-6 h-6" />
+        <GlassCard className="border-emerald-500/50 bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/40 p-8 space-y-6 shadow-2xl animate-fadeIn">
+          {/* Document Header Metadata */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+            <div className="flex items-start gap-4">
+              <div className="p-3.5 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 mt-1">
+                <BookOpen className="w-8 h-8" />
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    Academic Approved
+                    Academic Approved ({((latestResult.validation.confidence || 1) * 100).toFixed(0)}%)
                   </span>
                   <span className="text-[10px] font-semibold text-slate-400">
-                    Confidence: {(latestResult.validation.confidence * 100).toFixed(0)}%
+                    Status: Ready for AI
                   </span>
                 </div>
-                <h3 className="text-lg font-bold text-white">{latestResult.course.title}</h3>
-                <p className="text-xs text-slate-300">
-                  {latestResult.document.name} • Subject: <strong className="text-cyan-300">{latestResult.validation.subject || 'Academic'}</strong> • Type: <strong className="text-indigo-300">{latestResult.validation.materialType.replace('_', ' ')}</strong>
-                </p>
-                <p className="text-xs text-emerald-400/90 italic pt-1">
-                  "{latestResult.validation.reason}"
-                </p>
+                <h2 className="text-2xl font-extrabold text-white">{latestResult.document.name}</h2>
+                <div className="flex items-center gap-3 text-xs text-slate-300 flex-wrap pt-0.5">
+                  <span>Subject: <strong className="text-cyan-300">{latestResult.validation.subject || 'Course Syllabus'}</strong></span>
+                  <span>•</span>
+                  <span>Material: <strong className="text-indigo-300 capitalize">{(latestResult.validation.materialType || 'lecture_notes').replace('_', ' ')}</strong></span>
+                  <span>•</span>
+                  <span>Pages: <strong className="text-white">{latestResult.document.overview?.pagesCount || 1}</strong></span>
+                  <span>•</span>
+                  <span>Topics: <strong className="text-white">{latestResult.document.topicsIdentified}</strong></span>
+                </div>
               </div>
             </div>
+
             <Button
               variant="primary"
               size="sm"
@@ -473,22 +478,98 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
-              <span className="text-xs text-slate-400 block">Detected Units</span>
-              <span className="text-xl font-extrabold text-emerald-400">✓ {latestResult.document.unitsDetected} Units</span>
+          {/* Quick Summary Section */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-extrabold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" />
+              Quick Summary
+            </h4>
+            <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+              {latestResult.document.overview?.summary || latestResult.validation.reason}
             </div>
-            <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
-              <span className="text-xs text-slate-400 block">Topics Identified</span>
-              <span className="text-xl font-extrabold text-cyan-400">✓ {latestResult.document.topicsIdentified} Topics</span>
+          </div>
+
+          {/* Key Takeaways */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-extrabold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Key Takeaways
+            </h4>
+            <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2 text-xs text-slate-300">
+              {(latestResult.document.overview?.keyTakeaways || [
+                `Structured syllabus models and core primitives in ${latestResult.validation.subject || 'this course'}.`,
+                `Essential definitions, invariant constraints, and procedural formulations.`,
+                `High-yield concepts targeted in midterm examinations and revision quizzes.`
+              ]).map((point, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">•</span>
+                  <span>{point}</span>
+                </div>
+              ))}
             </div>
-            <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
-              <span className="text-xs text-slate-400 block">Concepts Extracted</span>
-              <span className="text-xl font-extrabold text-blue-400">✓ {latestResult.document.conceptsExtracted} Concepts</span>
+          </div>
+
+          {/* Important Topics */}
+          {latestResult.document.overview?.importantTopics && latestResult.document.overview.importantTopics.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">
+                Important Extracted Topics
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {latestResult.document.overview.importantTopics.map((top, idx) => (
+                  <span
+                    key={idx}
+                    className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-cyan-300 font-medium"
+                  >
+                    {idx + 1}. {top}
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
-              <span className="text-xs text-slate-400 block">Study Status</span>
-              <span className="text-xl font-extrabold text-amber-400">✓ Ready for AI</span>
+          )}
+
+          {/* WHAT DO YOU WANT TO DO? ACTION TILES */}
+          <div className="pt-4 border-t border-slate-800 space-y-3">
+            <h4 className="text-xs font-extrabold text-slate-300 uppercase tracking-wider">
+              What do you want to do with this material?
+            </h4>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Button
+                variant="primary"
+                size="md"
+                className="w-full justify-center"
+                icon={<MessageSquare className="w-4 h-4" />}
+                onClick={() => onNavigate('chat')}
+              >
+                Ask AI
+              </Button>
+              <Button
+                variant="secondary"
+                size="md"
+                className="w-full justify-center"
+                icon={<HelpCircle className="w-4 h-4 text-cyan-400" />}
+                onClick={() => onNavigate('explain')}
+              >
+                Explain Topic
+              </Button>
+              <Button
+                variant="secondary"
+                size="md"
+                className="w-full justify-center"
+                icon={<FileQuestion className="w-4 h-4 text-emerald-400" />}
+                onClick={() => onNavigate('quizzes')}
+              >
+                Generate Quiz
+              </Button>
+              <Button
+                variant="secondary"
+                size="md"
+                className="w-full justify-center"
+                icon={<Calendar className="w-4 h-4 text-amber-400" />}
+                onClick={() => onNavigate('revision')}
+              >
+                Revision Plan
+              </Button>
             </div>
           </div>
         </GlassCard>

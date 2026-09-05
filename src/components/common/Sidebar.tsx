@@ -6,17 +6,13 @@ import {
   FileQuestion,
   Calendar,
   Settings,
-  BrainCircuit,
-  Play
+  BrainCircuit
 } from 'lucide-react';
 import { NOVAOrb } from '../ai/NOVAOrb';
 
 interface SidebarProps {
   activeTab: string;
   onNavigate: (tab: string) => void;
-  isDemoMode: boolean;
-  onExitDemoMode?: () => void;
-  onLaunchDemoMode?: () => void;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
 }
@@ -24,13 +20,9 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onNavigate,
-  isDemoMode,
-  onExitDemoMode,
-  onLaunchDemoMode,
   isMobileOpen,
   onCloseMobile
 }) => {
-  // Exact 6 Core PDF Navigation Items
   const navItems = [
     { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
     { id: 'upload', label: 'My Study Material', icon: UploadCloud, highlight: true },
@@ -70,31 +62,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* DEMO MODE ISOLATION BANNER */}
-        {isDemoMode ? (
-          <div className="mb-4 p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-between text-amber-300 text-xs">
-            <span className="font-extrabold tracking-wider uppercase text-[10px] flex items-center gap-1">
-              ⚡ DEMO WORKSPACE
-            </span>
-            <button
-              onClick={onExitDemoMode}
-              className="text-[10px] font-bold text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              Exit Demo
-            </button>
-          </div>
-        ) : (
-          <div className="mb-4">
-            <button
-              onClick={onLaunchDemoMode}
-              className="w-full py-1.5 px-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              Try Demo Workspace
-            </button>
-          </div>
-        )}
-
         {/* Streamlined Core Navigation links */}
         <nav className="space-y-1">
           {navItems.map((item) => {
@@ -133,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
             </p>
             <p className="text-[11px] text-slate-400 truncate">
-              {isDemoMode ? 'Demo Workspace' : 'Personal Study Space'}
+              Personal Study Space
             </p>
           </div>
         </div>

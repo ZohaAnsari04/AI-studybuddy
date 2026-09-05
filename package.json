@@ -12,6 +12,7 @@
   "dependencies": {
     "@radix-ui/react-slot": "^1.3.3",
     "@supabase/supabase-js": "^2.112.4",
+    "@types/three": "^0.185.4",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -22,9 +23,11 @@
     "mammoth": "^1.12.2",
     "ogl": "^1.0.11",
     "pdfjs-dist": "^6.3.289",
+    "postprocessing": "^6.39.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

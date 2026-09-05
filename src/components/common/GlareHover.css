@@ -1,0 +1,66 @@
+.glare-hover {
+  width: var(--gh-width, 100%);
+  height: var(--gh-height, 100%);
+  background: var(--gh-bg, rgba(15, 28, 34, 0.65));
+  border-radius: var(--gh-br, 16px);
+  border: 1px solid var(--gh-border, rgba(255, 255, 255, 0.1));
+  overflow: hidden;
+  position: relative;
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.glare-hover.glare-hover--flex {
+  display: flex;
+  place-items: unset;
+}
+
+.glare-hover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(
+    var(--gh-angle, -45deg),
+    hsla(0, 0%, 0%, 0) 60%,
+    var(--gh-rgba, rgba(255, 255, 255, 0.5)) 70%,
+    hsla(0, 0%, 0%, 0),
+    hsla(0, 0%, 0%, 0) 100%
+  );
+  transition: var(--gh-duration, 650ms) ease;
+  background-size:
+    var(--gh-size, 250%) var(--gh-size, 250%),
+    100% 100%;
+  background-repeat: no-repeat;
+  background-position:
+    -100% -100%,
+    0 0;
+}
+
+.glare-hover:hover {
+  cursor: pointer;
+  transform: translateY(-4px);
+  box-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.5), 0 0 20px -5px var(--gh-border);
+}
+
+.glare-hover:hover::before {
+  background-position:
+    100% 100%,
+    0 0;
+}
+
+.glare-hover--play-once::before {
+  transition: none;
+}
+
+.glare-hover--play-once:hover::before {
+  transition: var(--gh-duration, 650ms) ease;
+  background-position:
+    100% 100%,
+    0 0;
+}

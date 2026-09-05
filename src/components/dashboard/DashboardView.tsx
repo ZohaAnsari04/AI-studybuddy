@@ -11,6 +11,8 @@ import { StorageService } from '../../lib/storage/db';
 import { GlassCard } from '../common/GlassCard';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
+import { StrokeText } from '../common/StrokeText';
+import { GlareHover } from '../common/GlareHover';
 
 interface DashboardViewProps {
   user: UserProfile | null;
@@ -34,11 +36,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     <div className="space-y-8 animate-fadeIn max-w-5xl mx-auto">
       {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            {hasCourses ? `${greeting}, ` : 'Welcome to StudySphere AI, '}
-            <span className="gradient-text">{displayName}</span> 👋
-          </h1>
+        <div className="flex-1 min-w-0">
+          <h1 className="sr-only">{`${greeting}, ${displayName} 👋`}</h1>
+          <StrokeText
+            text={`${greeting}, ${displayName} 👋`}
+            strokeColor="#00f2fe"
+            fillColor="#F8FAFC"
+            strokeWidth={1.4}
+            drawDuration={1.6}
+            fillDelay={0.2}
+            stagger={0.04}
+            ease="power2.out"
+            trigger="mount"
+            fillMode="wipe"
+            fontSize={44}
+            fontWeight={800}
+            letterSpacing={-1}
+            className="w-full max-w-2xl"
+          />
           <p className="text-sm text-slate-400 mt-1">
             {hasCourses
               ? 'Your personalized AI study companion.'
@@ -187,57 +202,101 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* QUICK ACTIONS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <GlassCard onClick={() => onNavigate('chat')} className="border-blue-500/30 flex flex-col justify-between cursor-pointer">
-          <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 w-fit mb-3">
-            <MessageSquare className="w-5 h-5" />
+        <GlareHover
+          onClick={() => onNavigate('chat')}
+          glareColor="#3b82f6"
+          glareOpacity={0.35}
+          glareAngle={-30}
+          glareSize={280}
+          transitionDuration={700}
+          borderColor="rgba(59, 130, 246, 0.3)"
+          className="p-6 flex flex-col justify-between cursor-pointer"
+        >
+          <div className="relative z-10 flex flex-col justify-between h-full w-full">
+            <div>
+              <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 w-fit mb-3">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              <h4 className="text-sm font-bold text-white mb-1">Ask AI</h4>
+              <p className="text-xs text-slate-400">Doubt solver strictly grounded in your notes with page citations.</p>
+            </div>
+            <span className="text-xs font-semibold text-blue-400 mt-4 flex items-center gap-1">
+              Open Chat →
+            </span>
           </div>
-          <div>
-            <h4 className="text-sm font-bold text-white mb-1">Ask AI</h4>
-            <p className="text-xs text-slate-400">Doubt solver strictly grounded in your notes with page citations.</p>
-          </div>
-          <span className="text-xs font-semibold text-blue-400 mt-4 flex items-center gap-1">
-            Open Chat →
-          </span>
-        </GlassCard>
+        </GlareHover>
 
-        <GlassCard onClick={() => onNavigate('explain')} className="border-purple-500/30 flex flex-col justify-between cursor-pointer">
-          <div className="p-3 rounded-xl bg-purple-500/10 text-purple-400 w-fit mb-3">
-            <Sparkles className="w-5 h-5" />
+        <GlareHover
+          onClick={() => onNavigate('explain')}
+          glareColor="#a855f7"
+          glareOpacity={0.35}
+          glareAngle={-30}
+          glareSize={280}
+          transitionDuration={700}
+          borderColor="rgba(168, 85, 247, 0.3)"
+          className="p-6 flex flex-col justify-between cursor-pointer"
+        >
+          <div className="relative z-10 flex flex-col justify-between h-full w-full">
+            <div>
+              <div className="p-3 rounded-xl bg-purple-500/10 text-purple-400 w-fit mb-3">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <h4 className="text-sm font-bold text-white mb-1">Explain Topic</h4>
+              <p className="text-xs text-slate-400">Simplified explanations and "Explain Like I'm 10" analogies.</p>
+            </div>
+            <span className="text-xs font-semibold text-purple-400 mt-4 flex items-center gap-1">
+              Explain Concept →
+            </span>
           </div>
-          <div>
-            <h4 className="text-sm font-bold text-white mb-1">Explain Topic</h4>
-            <p className="text-xs text-slate-400">Simplified explanations and "Explain Like I'm 10" analogies.</p>
-          </div>
-          <span className="text-xs font-semibold text-purple-400 mt-4 flex items-center gap-1">
-            Explain Concept →
-          </span>
-        </GlassCard>
+        </GlareHover>
 
-        <GlassCard onClick={() => onNavigate('quizzes')} className="border-amber-500/30 flex flex-col justify-between cursor-pointer">
-          <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400 w-fit mb-3">
-            <FileQuestion className="w-5 h-5" />
+        <GlareHover
+          onClick={() => onNavigate('quizzes')}
+          glareColor="#f59e0b"
+          glareOpacity={0.35}
+          glareAngle={-30}
+          glareSize={280}
+          transitionDuration={700}
+          borderColor="rgba(245, 158, 11, 0.3)"
+          className="p-6 flex flex-col justify-between cursor-pointer"
+        >
+          <div className="relative z-10 flex flex-col justify-between h-full w-full">
+            <div>
+              <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400 w-fit mb-3">
+                <FileQuestion className="w-5 h-5" />
+              </div>
+              <h4 className="text-sm font-bold text-white mb-1">Generate Quiz</h4>
+              <p className="text-xs text-slate-400">Create multiple-choice practice tests from your material on demand.</p>
+            </div>
+            <span className="text-xs font-semibold text-amber-400 mt-4 flex items-center gap-1">
+              Create Quiz →
+            </span>
           </div>
-          <div>
-            <h4 className="text-sm font-bold text-white mb-1">Generate Quiz</h4>
-            <p className="text-xs text-slate-400">Create multiple-choice practice tests from your material on demand.</p>
-          </div>
-          <span className="text-xs font-semibold text-amber-400 mt-4 flex items-center gap-1">
-            Create Quiz →
-          </span>
-        </GlassCard>
+        </GlareHover>
 
-        <GlassCard onClick={() => onNavigate('revision')} className="border-emerald-500/30 flex flex-col justify-between cursor-pointer">
-          <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 w-fit mb-3">
-            <Calendar className="w-5 h-5" />
+        <GlareHover
+          onClick={() => onNavigate('revision')}
+          glareColor="#10b981"
+          glareOpacity={0.35}
+          glareAngle={-30}
+          glareSize={280}
+          transitionDuration={700}
+          borderColor="rgba(16, 185, 129, 0.3)"
+          className="p-6 flex flex-col justify-between cursor-pointer"
+        >
+          <div className="relative z-10 flex flex-col justify-between h-full w-full">
+            <div>
+              <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 w-fit mb-3">
+                <Calendar className="w-5 h-5" />
+              </div>
+              <h4 className="text-sm font-bold text-white mb-1">Revision Plan</h4>
+              <p className="text-xs text-slate-400">Build an adaptive timetable prioritizing weak quiz topics.</p>
+            </div>
+            <span className="text-xs font-semibold text-emerald-400 mt-4 flex items-center gap-1">
+              Build Schedule →
+            </span>
           </div>
-          <div>
-            <h4 className="text-sm font-bold text-white mb-1">Revision Plan</h4>
-            <p className="text-xs text-slate-400">Build an adaptive timetable prioritizing weak quiz topics.</p>
-          </div>
-          <span className="text-xs font-semibold text-emerald-400 mt-4 flex items-center gap-1">
-            Build Schedule →
-          </span>
-        </GlassCard>
+        </GlareHover>
       </div>
     </div>
   );

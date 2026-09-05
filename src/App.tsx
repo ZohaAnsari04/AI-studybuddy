@@ -10,7 +10,6 @@ import { AIExplainerView } from './components/explain/AIExplainerView';
 import { AskNOVAChat } from './components/chat/AskNOVAChat';
 import { QuizGeneratorView } from './components/quiz/QuizGeneratorView';
 import { RevisionPlannerView } from './components/revision/RevisionPlannerView';
-import { AuthModal } from './components/auth/AuthModal';
 import { GlassCard } from './components/common/GlassCard';
 import { Hyperspeed, HyperspeedOptions } from './components/common/Hyperspeed';
 import { Settings, ShieldCheck, Sparkles, UserCheck } from 'lucide-react';
@@ -63,9 +62,6 @@ export function App() {
   const [courses, setCourses] = useState<Course[]>(() => StorageService.getCourses(user?.id));
   const [documents, setDocuments] = useState<StudyDocument[]>(() => StorageService.getDocuments(user?.id));
   const [revisionTasks, setRevisionTasks] = useState<RevisionTask[]>(() => StorageService.getRevisionTasks(user?.id));
-
-  // Auth modal state
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   // Synchronize data for a specific user ID
   const syncUserData = useCallback(async (userId?: string) => {
@@ -245,28 +241,6 @@ export function App() {
     setActiveTab(tab);
   };
 
-  const handleSignOut = async () => {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.auth.signOut();
-      } catch (err) {
-        console.error('Supabase sign out error:', err);
-      }
-    }
-    StorageService.clearUserSession();
-    setUser(null);
-    setCourses([]);
-    setDocuments([]);
-    setRevisionTasks([]);
-    setActiveTab('dashboard');
-  };
-
-  const handleAuthSuccess = (authenticatedUser: UserProfile) => {
-    StorageService.saveUser(authenticatedUser);
-    setUser(authenticatedUser);
-    syncUserData(authenticatedUser.id);
-  };
-
   const handleCourseCreated = (newCourse: Course, _newDoc: StudyDocument) => {
     const firstTopic = newCourse.units[0]?.topics[0]?.id;
     setSelectedTopicId(firstTopic);
@@ -288,8 +262,6 @@ export function App() {
           user={user}
           activeTab={activeTab}
           onNavigate={(tab) => handleNavigate(tab)}
-          onOpenAuth={() => setIsAuthOpen(true)}
-          onSignOut={handleSignOut}
         />
 
         <main className="flex-1 p-4 lg:p-8 max-w-7xl mx-auto w-full">
@@ -378,23 +350,16 @@ export function App() {
                   Active Student Workspace
                 </h3>
                 <p className="text-xs text-slate-300">
-                  Authenticated User: <strong>{user ? `${user.name} (${user.email})` : 'Unauthenticated (Guest Mode)'}</strong>
+                  Active Student: <strong>{user ? `${user.name} (${user.email})` : 'Google'}</strong>
                 </p>
                 <p className="text-xs text-slate-400">
-                  All uploaded documents, courses, quizzes, and revision schedules are isolated to your authenticated student ID.
+                  All uploaded documents, courses, quizzes, and revision schedules are saved to your local student workspace.
                 </p>
               </GlassCard>
             </div>
           )}
         </main>
       </div>
-
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
-        onAuthSuccess={handleAuthSuccess}
-      />
     </div>
   );
 }

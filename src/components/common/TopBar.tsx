@@ -1,14 +1,12 @@
 import React from 'react';
-import { Sparkles, LogOut, LogIn } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { PillNav, PillNavItem } from './PillNav';
+import { AskAIButton } from './AskAIButton';
 
 interface TopBarProps {
-  user: UserProfile | null;
+  user?: UserProfile | null;
   activeTab?: string;
   onNavigate: (tab: string) => void;
-  onOpenAuth: () => void;
-  onSignOut: () => void;
 }
 
 const navItems: PillNavItem[] = [
@@ -23,9 +21,7 @@ const navItems: PillNavItem[] = [
 export const TopBar: React.FC<TopBarProps> = ({
   user,
   activeTab = 'dashboard',
-  onNavigate,
-  onOpenAuth,
-  onSignOut
+  onNavigate
 }) => {
   return (
     <header className="sticky top-0 z-50 w-full min-h-[4.5rem] glass-nav px-4 lg:px-8 flex items-center justify-between gap-4 py-2 border-b border-slate-800/80 bg-[#080b0f]/90 backdrop-blur-2xl shadow-lg shadow-black/30">
@@ -62,45 +58,24 @@ export const TopBar: React.FC<TopBarProps> = ({
         />
       </div>
 
-      {/* Right side controls & user authentication */}
+      {/* Right side controls */}
       <div className="flex items-center gap-3 flex-shrink-0">
         {/* Quick Ask AI button */}
-        <button
+        <AskAIButton
           onClick={() => onNavigate('chat')}
-          className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-600/20 text-cyan-300 border border-cyan-500/40 hover:border-cyan-400 text-xs font-semibold glow-cyan cursor-pointer transition-all"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Ask AI</span>
-        </button>
+          className="hidden sm:inline-flex"
+        />
 
-        {/* User Profile or Sign In */}
-        {user ? (
-          <div className="flex items-center gap-3 pl-1">
-            <div className="flex items-center gap-2">
-              <img
-                src={user.avatarUrl}
-                alt={user.name}
-                className="w-9 h-9 rounded-xl object-cover border border-cyan-500/40"
-              />
-              <span className="hidden xl:inline text-xs font-bold text-white max-w-[120px] truncate">{user.name}</span>
-            </div>
-            <button
-              onClick={onSignOut}
-              title="Sign Out"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-slate-800 hover:border-rose-500/30 transition-all cursor-pointer"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Sign Out</span>
-            </button>
+        {/* User Profile Avatar */}
+        {user && (
+          <div className="flex items-center gap-2 pl-1">
+            <img
+              src={user.avatarUrl}
+              alt={user.name}
+              className="w-8 h-8 rounded-xl object-cover border border-cyan-500/40"
+            />
+            <span className="hidden xl:inline text-xs font-semibold text-slate-200 max-w-[120px] truncate">{user.name}</span>
           </div>
-        ) : (
-          <button
-            onClick={onOpenAuth}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
-          >
-            <LogIn className="w-4 h-4" />
-            <span>Sign In</span>
-          </button>
         )}
       </div>
     </header>

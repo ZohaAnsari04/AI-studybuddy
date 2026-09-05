@@ -80,19 +80,20 @@ export class StorageService {
     return newProfile;
   }
 
-  static getUser(): UserProfile | null {
+  static getUser(): UserProfile {
     const userId = this.getActiveUserId();
-    if (!userId) return null;
-
-    const data = appStorage.getItem(`${STORAGE_KEYS.USER_PREFIX}${userId}`);
-    if (data) {
-      try {
-        return JSON.parse(data);
-      } catch {
-        return null;
+    if (userId) {
+      const data = appStorage.getItem(`${STORAGE_KEYS.USER_PREFIX}${userId}`);
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed && parsed.id) return parsed;
+        } catch {
+          // fallback
+        }
       }
     }
-    return null;
+    return this.createNewUserAccount('Google', 'student@studysphere.ai');
   }
 
   static saveUser(user: UserProfile): void {
